@@ -1,7 +1,7 @@
 import pickle
 from preprocessing import preprocess_train
 from optimization import get_optimal_vector
-from inference import tag_all_test
+from inference import tag_all_test, eval_preds
 
 
 def main():
@@ -23,6 +23,9 @@ def main():
 
     print(pre_trained_weights)
     tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path)
+    accuracy_score, top_10_mistakes_dict = eval_preds(test_path, predictions_path)
+    print("Accuracy:", accuracy_score)
+    print("Top 10 mistakes:", top_10_mistakes_dict)
 
 
 if __name__ == '__main__':
