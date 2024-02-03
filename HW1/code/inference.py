@@ -117,7 +117,7 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
         pred = memm_viterbi(sentence, pre_trained_weights, feature2id)[1:]
-        sentence = sentence[2:-1]
+        sentence = sentence[2:]
         for i in range(len(pred)):
             if i > 0:
                 output_file.write(" ")
