@@ -1,6 +1,6 @@
 from preprocessing import read_test
 from tqdm import tqdm
-from typing import List, Dict, Tuple 
+from typing import List, Dict, Tuple, Union
 import numpy as np
 from preprocessing import Feature2id, represent_input_with_features
 from collections import OrderedDict, defaultdict
@@ -105,7 +105,7 @@ def memm_viterbi(sentence: List[str], pre_trained_weights: np.ndarray, feature2i
     for k in range(n-3, -1, -1):
         preds[k] = bp_dict[(k + 2, preds[k + 1], preds[k + 2])]
     # removing "*" tag
-    return preds[:1]
+    return preds[1:]
 
 
 def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
@@ -117,7 +117,7 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
         pred = memm_viterbi(sentence, pre_trained_weights, feature2id)[1:]
-        sentence = sentence[2:]
+        sentence = sentence[2:-1]
         for i in range(len(pred)):
             if i > 0:
                 output_file.write(" ")
@@ -126,7 +126,16 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     output_file.close()
 
 
-def eval_preds(labeled_test_path: str, prediction_path: str):
+def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dict[Tuple[str, str], int]]:
+    """Calculate total accuracy and top 10 mistakes confusion matrix
+
+    Args:
+        labeled_test_path (str): path to the test file
+        prediction_path (str): path to the prediction file
+
+    Returns:
+        Tuple[float, Dict[Tuple[str, str]]: accuracy score, confusion matrix dict (key=pairs of tags, value=count of mistakes)
+    """
     test_list = read_test(labeled_test_path, tagged=True)
     preds_list = read_test(prediction_path, tagged=True)
     confusion_matrix = {}
@@ -135,7 +144,7 @@ def eval_preds(labeled_test_path: str, prediction_path: str):
     for test, pred in zip(test_list, preds_list):
         test_labels = test[TAG][2:-1]
         pred_labels = pred[TAG][2:-1]
-        assert(len(test_labels) == len(pred_labels), "Test and Preds are not aligned")
+        assert len(test_labels) == len(pred_labels), "Test and Preds are not aligned"
         for i in range(len(test_labels)):
             test_label = test_labels[i]
             pred_label = pred_labels[i]
@@ -151,6 +160,10 @@ def eval_preds(labeled_test_path: str, prediction_path: str):
     top_10_mistakes_dict = dict(sorted_mistakes[:10])
     accuracy_score = count_true_preds / count_all_preds
     return accuracy_score, top_10_mistakes_dict
+
+
+
+
     
     
     
