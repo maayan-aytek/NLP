@@ -342,18 +342,18 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     # f101
     word_cutting_bound = min(len(c_word) + 1, 5)
     if "f101" in dict_of_dicts:
-        for suffix_len in range(1, min(word_cutting_bound + 1, 5)):
+        for suffix_len in range(1, word_cutting_bound):
             word_suffix = c_word[-suffix_len:]
             if (word_suffix, c_tag) in dict_of_dicts["f101"]:
                 features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
 
     # f102
     if "f102" in dict_of_dicts:
-        for prefix_len in range(1, min(word_cutting_bound + 1, 5)):
+        for prefix_len in range(1, word_cutting_bound):
             word_prefix = c_word[:prefix_len]
             if (word_prefix, c_tag) in dict_of_dicts["f102"]:
                 features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
-
+            
     # f103
     if "f103" in dict_of_dicts: 
         if (prev_prev_tag, prev_tag, c_tag) in dict_of_dicts["f103"]:
@@ -361,8 +361,8 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
     # f104
     if "f104" in dict_of_dicts: 
-        if (prev_tag,c_tag) in dict_of_dicts["f104"]:
-            features.append(dict_of_dicts["f104"][(prev_tag,c_tag)])
+        if (prev_tag, c_tag) in dict_of_dicts["f104"]:
+            features.append(dict_of_dicts["f104"][(prev_tag, c_tag)])
 
     # f105
     if "f105" in dict_of_dicts:
@@ -435,8 +435,8 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 def preprocess_train(train_path, threshold, run_mode="test1"):
     # Statistics
     if run_mode == "test1":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107",] # "f_is_numeric", "f_is_combined_numeric", 
-                                # "f_all_capital", "f_first_capital", "f_length", "f_prev_length", "f_prev_prev_length", "f_has_hyphen", "f_curr_prev_capital"]
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", 
+                                "f_all_capital", "f_first_capital", "f_length", "f_prev_length", "f_prev_prev_length", "f_has_hyphen", "f_curr_prev_capital"]
     elif run_mode == "comp1":
         filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
     elif run_mode == "test2":
