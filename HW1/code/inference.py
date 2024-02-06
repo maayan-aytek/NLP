@@ -1,13 +1,9 @@
-from preprocessing import read_test
 from tqdm import tqdm
 from typing import List, Dict, Tuple, Union
 import numpy as np
-from preprocessing import Feature2id, represent_input_with_features
+from preprocessing import Feature2id, represent_input_with_features, read_test
 from collections import OrderedDict, defaultdict
-from omri import memm_viterbi_omri, memm_viterbi1 #TODO: delete
 
-
-TAG = 1
 
 def update_q_dict(q_dict: dict, sentence: List[str], k:int, pre_trained_weights: np.ndarray, feature2id: Feature2id, all_tags: list, prev_tag:str, prev_prev_tag:str) -> None:
     """q values calculations
@@ -28,19 +24,14 @@ def update_q_dict(q_dict: dict, sentence: List[str], k:int, pre_trained_weights:
     prev_prev_word = sentence[k - 2]
     next_word = sentence[k + 1] if k != len(sentence) - 1 else "~"
     for tag in all_tags: 
-        if tag == "*": # prbability is zero for "*" tagging in the sentence itself (from the 3rd word and forth)
-            q_dict[(prev_prev_tag, prev_tag, tag, k)] = 0
-            continue
         history = (curr_word, tag, prev_word, prev_tag, prev_prev_word, prev_prev_tag, next_word)
-            # extracting relevant features vector
-        features = represent_input_with_features(history, feature2id.feature_to_idx)
+        features = represent_input_with_features(history, feature2id.feature_to_idx) # extracting relevant features vector
         curr_exp = np.exp(pre_trained_weights[features].sum()) # numerator
         all_exp_sum += curr_exp # summing all numerators
         q_dict[(prev_prev_tag, prev_tag, tag, k)] = curr_exp
     
     for tag in all_tags: 
-        # denominator devision
-        q_dict[(prev_prev_tag, prev_tag, tag, k)] /= all_exp_sum
+        q_dict[(prev_prev_tag, prev_tag, tag, k)] /= all_exp_sum # denominator devision
 
 
 def viterbi_initialization(n: int, all_tags: List[str]) -> Tuple[dict, dict, List[str]]:
@@ -60,7 +51,6 @@ def viterbi_initialization(n: int, all_tags: List[str]) -> Tuple[dict, dict, Lis
             for prev_prev_tag in all_tags:
                 pi_dict[(k, prev_prev_tag, prev_tag)] = 0
                 bp_dict[(k, prev_prev_tag, prev_tag)] = ""
-    pi_dict[(1, "*", "*")] = 1 # first step in the viterbi algorithm
     preds = ["~"] * n 
     return pi_dict, bp_dict, preds
 
@@ -78,13 +68,11 @@ def memm_viterbi(sentence: List[str], pre_trained_weights: np.ndarray, feature2i
     """
     sentence = sentence[:-1] # remove "~" from sentence
     n = len(sentence)
-    all_tags = list(feature2id.feature_statistics.tags) + ["*"] # adding "*" to the tags set
-    pi_dict, bp_dict, preds = viterbi_initialization(n, all_tags)
-    # updating pi and bp values
+    all_tags = list(feature2id.feature_statistics.tags)
+    pi_dict, bp_dict, q_dict, preds = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id)
     n_pi_values = []
-    q_dict = {}
     
-    for k in range(2, n):
+    for k in range(4, n):
         for prev_prev_tag in all_tags:
             for prev_tag in all_tags:
                 update_q_dict(q_dict, sentence, k, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
@@ -107,6 +95,53 @@ def memm_viterbi(sentence: List[str], pre_trained_weights: np.ndarray, feature2i
     return preds[2:]
 
 
+def first_iter_viterbi(sentence: List[str], n: int, all_tags: List[str], pre_trained_weights: np.ndarray, feature2id: Feature2id, 
+                       b: int = None) -> Union[Tuple[dict, dict, dict, dict, List[str]], Tuple[dict, dict, dict, List[str]]]:
+    """Initializa viterbi algorithm and run first step(s).
+
+    Args:
+        sentence (List[str]): list of sentence words 
+        n (int): sentence length
+        all_tags (List[str]): list of all tags 
+        pre_trained_weights (np.ndarray): features weights vector
+        feature2id (Feature2id): Feature2id object
+        b (int, optional): beam size (in case running with beam search)
+    Returns:
+        Union[Tuple[dict, dict, dict, dict, List[str]], Tuple[dict, dict, dict, List[str]]]: 
+        - pi_dict: probabilities dictionary 
+        - bp_dict: back pointers (to prev prev tag) dictionary
+        - q_dict: q values dictionary
+        - best_tags_pairs (optional): dictionary of the best b states that will continue to the next iteration
+        - preds: list of initialized predictions
+    """
+    pi_dict, bp_dict, preds = viterbi_initialization(n, all_tags)
+    q_dict = {}
+    # Previous tags initializations 
+    prev_prev_tag = "*"
+    prev_tag = "*"
+    update_q_dict(q_dict, sentence, 2, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
+    values = []
+    for curr_tag in all_tags:
+        curr_value = q_dict[(prev_prev_tag, prev_tag, curr_tag, 2)] * 1
+        values.append([prev_tag, curr_tag, curr_value])
+        bp_dict[(2, prev_tag, curr_tag)], pi_dict[(2, prev_tag, curr_tag)] = prev_prev_tag, curr_value
+    if b: # beam search- find options for the next iteration
+        sorted_values = sorted(values, key= lambda x: x[2], reverse=True)[:b]
+        best_tags_pairs = defaultdict(list)
+        for prev_tag, curr_tag, _ in sorted_values:
+            best_tags_pairs[curr_tag].append(prev_tag)
+        return pi_dict, bp_dict, q_dict, best_tags_pairs, preds
+    else: # continue to k = 3
+        for prev_tag in all_tags:
+            update_q_dict(q_dict, sentence, 3, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
+        for prev_tag in all_tags:
+            for curr_tag in all_tags:
+                curr_value = q_dict[(prev_prev_tag, prev_tag, curr_tag, 3)] * pi_dict[(2, prev_prev_tag, prev_tag)]
+                bp_dict[(3, prev_tag, curr_tag)], pi_dict[(3, prev_tag, curr_tag)] = prev_prev_tag, curr_value
+
+    return pi_dict, bp_dict, q_dict, preds
+
+
 def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, feature2id: Feature2id, b: int) -> List[str]:
     """Implementing MEMM viterbi algorithm with beam search
 
@@ -121,15 +156,11 @@ def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, featu
     """
     sentence = sentence[:-1] # remove "~" from sentence
     n = len(sentence)
-    all_tags = list(feature2id.feature_statistics.tags) + ["*"] # adding "*" to the tags set
-    pi_dict, bp_dict, preds = viterbi_initialization(n, all_tags)
-    # updating pi and bp values
+    all_tags = list(feature2id.feature_statistics.tags)
+    pi_dict, bp_dict, q_dict, best_tags_pairs, preds = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id, b)
     n_pi_values = []
-    best_tags_pairs = {}
-    for prev_tag in all_tags:
-        best_tags_pairs[prev_tag] = all_tags
-    q_dict = {}
-    for k in range(2, n):
+   
+    for k in range(3, n):
         for prev_tag, prev_prev_tags_list in best_tags_pairs.items():
                 for prev_prev_tag in prev_prev_tags_list:
                     update_q_dict(q_dict, sentence, k, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
@@ -167,14 +198,9 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     test = read_test(test_path, tagged=tagged)
 
     output_file = open(predictions_path, "a+")
-    import time
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
-        t0 = time.time()
-        pred = memm_beam_search(sentence, pre_trained_weights, feature2id, b=5) 
-        # memm_viterbi1(sentence, pre_trained_weights, feature2id, top_k=-1000)  # memm_viterbi(sentence, pre_trained_weights, feature2id)
-         # memm_beam_search(sentence, pre_trained_weights, feature2id, b=5)# memm_viterbi_omri(sentence, pre_trained_weights, feature2id, top_k=5)
-        print(time.time() - t0)
+        pred = memm_beam_search(sentence, pre_trained_weights, feature2id, b=2)
         sentence = sentence[2:]
         for i in range(len(pred)):
             if i > 0:
@@ -183,41 +209,6 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
         output_file.write("\n")
     output_file.close()
 
-
-def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dict[Tuple[str, str], int]]:
-    """Calculate total accuracy and top 10 mistakes confusion matrix
-
-    Args:
-        labeled_test_path (str): path to the test file
-        prediction_path (str): path to the prediction file
-
-    Returns:
-        Tuple[float, Dict[Tuple[str, str]]: accuracy score, confusion matrix dict (key=pairs of tags, value=count of mistakes)
-    """
-    test_list = read_test(labeled_test_path, tagged=True)
-    preds_list = read_test(prediction_path, tagged=True)
-    confusion_matrix = {}
-    count_true_preds = 0
-    count_all_preds = 0
-    for test, pred in zip(test_list, preds_list):
-        test_labels = test[TAG][2:-1]
-        pred_labels = pred[TAG][2:-1]
-        assert len(test_labels) == len(pred_labels), "Test and Preds are not aligned"
-        for i in range(len(test_labels)):
-            test_label = test_labels[i]
-            pred_label = pred_labels[i]
-            count_all_preds += 1
-            if test_label == pred_label:
-                count_true_preds += 1
-            else:
-                if (test_label, pred_label) not in confusion_matrix.keys():
-                    confusion_matrix[(test_label, pred_label)] = 1
-                else:
-                    confusion_matrix[(test_label, pred_label)] += 1
-    sorted_mistakes = sorted(confusion_matrix.items(), key=lambda x: x[1], reverse=True)
-    top_10_mistakes_dict = dict(sorted_mistakes[:10])
-    accuracy_score = count_true_preds / count_all_preds
-    return accuracy_score, top_10_mistakes_dict
 
 
 

@@ -1,20 +1,30 @@
 import pickle
 from preprocessing import preprocess_train
 from optimization import get_optimal_vector
-from inference import tag_all_test, eval_preds
+from inference import tag_all_test
+from utils import eval_preds
 
 
 def main():
     threshold = 1
     lam = 1
+    run_mode = "test1"
+    train_path = "data/train1.wtag" if "1" in run_mode else "data/train2.wtag"
+    if run_mode == "test1":
+        test_path = "data/test1.wtag" 
+    elif run_mode == "test2":
+        test_path = "data/test2.wtag" 
+    elif run_mode == "comp1":
+        test_path = "data/comp1.wtag" 
+    elif run_mode == "comp2":
+        test_path = "data/comp2.wtag" 
+    else:
+        raise ValueError("unkown run mode")
 
-    train_path = "data/train1.wtag"
-    test_path = "data/test1.wtag"
+    weights_path = f'weights_{run_mode}.pkl' 
+    predictions_path = f'predictions_{run_mode}.wtag'
 
-    weights_path = 'weights.pkl'
-    predictions_path = 'predictions.wtag'
-
-    statistics, feature2id = preprocess_train(train_path, threshold, run_mode="test1")
+    statistics, feature2id = preprocess_train(train_path, threshold, run_mode=run_mode)
     get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
 
     with open(weights_path, 'rb') as f:

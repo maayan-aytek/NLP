@@ -55,12 +55,29 @@ def check_capital(word: str) -> Tuple[bool, bool]:
     return is_all_capital, first_capital
 
 
+def check_mid_word_capital(word: str) -> bool:
+    """Checks if there are captial letters in the middle of the word
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if there is a capital letter in the middle of the word and False otherwise
+    """
+    if  not word.isupper() and not word[0].isupper() and len(word) > 1 and "-" not in word:
+        for c in word[1:]:
+            if c.isupper():
+                return True
+    return False
+
+
 class FeatureStatistics:
     def __init__(self):
         self.n_total_features = 0  # Total number of features accumulated
 
         # Init all features dictionaries
-        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital"]  # the feature classes used in the code
+        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+                              "f_length", "f_prev_length", "f_prev_prev_length", "f_has_hyphen", "f_mid_capital", "f_curr_prev_capital"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -85,6 +102,8 @@ class FeatureStatistics:
                 split_words = line.split(' ')
                 for word_idx in range(len(split_words)):
                     cur_word, cur_tag = split_words[word_idx].split('_')
+                    cur_word_lower = cur_word.lower()
+                    cur_word_len = len(cur_word)
                     self.tags.add(cur_tag)
                     # calculating maximum cut size for prefix and suffix
                     word_cutting_bound = min(len(cur_word) + 1, 5)
@@ -117,10 +136,10 @@ class FeatureStatistics:
                             numeric_feature = "f_is_numeric"
                         else:
                             numeric_feature = "f_is_combined_numeric"
-                        if (numeric_feature, cur_tag) not in self.feature_rep_dict[numeric_feature]:
-                            self.feature_rep_dict[numeric_feature][(numeric_feature, cur_tag)] = 1
+                        if cur_tag not in self.feature_rep_dict[numeric_feature]:
+                            self.feature_rep_dict[numeric_feature][cur_tag] = 1
                         else:
-                            self.feature_rep_dict[numeric_feature][(numeric_feature, cur_tag)] += 1
+                            self.feature_rep_dict[numeric_feature][cur_tag] += 1
                     
                     # capital letters
                     is_all_capital, first_capital = check_capital(cur_word)
@@ -129,11 +148,31 @@ class FeatureStatistics:
                             capital_feature = "f_all_capital"
                         else:
                             capital_feature = "f_first_capital"
-                        if (capital_feature, cur_tag) not in self.feature_rep_dict[capital_feature]:
-                            self.feature_rep_dict[capital_feature][(capital_feature, cur_tag)] = 1
+                        if cur_tag not in self.feature_rep_dict[capital_feature]:
+                            self.feature_rep_dict[capital_feature][cur_tag] = 1
                         else:
-                            self.feature_rep_dict[capital_feature][(capital_feature, cur_tag)] += 1
+                            self.feature_rep_dict[capital_feature][cur_tag] += 1
+
+                    # length
+                    if (cur_word_len, cur_tag) not in self.feature_rep_dict["f_length"]:
+                        self.feature_rep_dict["f_length"][(cur_word_len, cur_tag)] = 1
+                    else:
+                        self.feature_rep_dict["f_length"][(cur_word_len, cur_tag)] += 1
+
+                    # has_hyphen
+                    if "-" in cur_word: 
+                        if (cur_word, cur_tag) not in self.feature_rep_dict["f_has_hyphen"]:
+                            self.feature_rep_dict["f_has_hyphen"][(cur_word, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f_has_hyphen"][(cur_word, cur_tag)] += 1
                     
+                    # mid capital
+                    if check_mid_word_capital(cur_word):
+                        if (cur_word, cur_tag) not in self.feature_rep_dict["f_mid_capital"]:
+                            self.feature_rep_dict["f_mid_capital"][(cur_word, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f_mid_capital"][(cur_word, cur_tag)] += 1
+
 
                 # w[-2] = w[-1] = "*"
                 sentence = [("*", "*"), ("*", "*")]
@@ -145,9 +184,15 @@ class FeatureStatistics:
                 for i in range(2, len(sentence) - 1):
                     # history = (w[current], t[current], w[-1], t[-1], w[-2], t[-2], w[+1])
                     cur_word, cur_tag = sentence[i][WORD], sentence[i][TAG]
+                    cur_word_lower = cur_word.lower()
                     prev_word, prev_tag = sentence[i - 1][WORD], sentence[i - 1][TAG]
+                    prev_word_len = len(prev_word)
+                    prev_word_lower = prev_word.lower()
                     prev_prev_word, prev_prev_tag = sentence[i - 2][WORD], sentence[i - 2][TAG]
+                    prev_prev_word_lower = prev_prev_word.lower()
+                    prev_prev_word_len = len(prev_prev_word)
                     next_word = sentence[i + 1][WORD]
+                    next_word_lower = next_word.lower()
 
                     history = (
                         cur_word,cur_tag, prev_word, prev_tag, prev_prev_word,
@@ -178,6 +223,25 @@ class FeatureStatistics:
                         self.feature_rep_dict["f107"][(next_word, cur_tag)] = 1
                     else:
                         self.feature_rep_dict["f107"][(next_word, cur_tag)] += 1
+
+                    # f_prev_length
+                    if (prev_word_len, prev_tag) not in self.feature_rep_dict["f_prev_length"]:
+                        self.feature_rep_dict["f_prev_length"][(prev_word_len, prev_tag)] = 1
+                    else:
+                        self.feature_rep_dict["f_prev_length"][(prev_word_len, prev_tag)] += 1
+
+                    # f_prev_prev_length
+                    if (prev_prev_word_len, prev_prev_tag) not in self.feature_rep_dict["f_prev_prev_length"]:
+                        self.feature_rep_dict["f_prev_prev_length"][(prev_prev_word_len, prev_prev_tag)] = 1
+                    else:
+                        self.feature_rep_dict["f_prev_prev_length"][(prev_prev_word_len, prev_prev_tag)] += 1
+
+                    # curr prev capital
+                    if check_capital(prev_word)[1] and check_capital(cur_word)[1]:
+                        if (prev_word, cur_word, cur_tag) not in self.feature_rep_dict["f_curr_prev_capital"]:
+                            self.feature_rep_dict["f_curr_prev_capital"][(prev_word, cur_word, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f_curr_prev_capital"][(prev_word, cur_word, cur_tag)] += 1
 
                     self.histories.append(history)
 
@@ -255,11 +319,18 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         @return a list with all features that are relevant to the given history
     """
     c_word = history[0]
+    c_word_len = len(c_word)
+    c_word_lower = c_word.lower()
     c_tag = history[1]
     prev_word = history[2]
+    prev_word_len = len(prev_word)
+    prev_word_lower = prev_word.lower()
     prev_tag = history[3]
+    prev_prev_word = history[4]
+    prev_prev_word_len = len(prev_prev_word)
     prev_prev_tag = history[5]
     next_word = history[6]
+    next_word_lower = next_word.lower()
     features = []
 
     # f100
@@ -273,15 +344,15 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     if "f101" in dict_of_dicts:
         for suffix_len in range(1, min(word_cutting_bound + 1, 5)):
             word_suffix = c_word[-suffix_len:]
-        if (word_suffix, c_tag) in dict_of_dicts["f101"]:
-            features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
+            if (word_suffix, c_tag) in dict_of_dicts["f101"]:
+                features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
 
     # f102
     if "f102" in dict_of_dicts:
         for prefix_len in range(1, min(word_cutting_bound + 1, 5)):
             word_prefix = c_word[:prefix_len]
-        if (word_prefix, c_tag) in dict_of_dicts["f102"]:
-            features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
+            if (word_prefix, c_tag) in dict_of_dicts["f102"]:
+                features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
 
     # f103
     if "f103" in dict_of_dicts: 
@@ -310,23 +381,53 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
     # is numeric
     if "f_is_numeric" in dict_of_dicts:
-        if ("f_is_numeric", c_tag) in dict_of_dicts["f_is_numeric"]:
-            features.append(dict_of_dicts["f_is_numeric"][("f_is_numeric", c_tag)])
+        if c_tag in dict_of_dicts["f_is_numeric"]:
+            features.append(dict_of_dicts["f_is_numeric"][c_tag])
     
     # is combined numeric
     if "f_is_combined_numeric" in dict_of_dicts:
-        if ("f_is_combined_numeric", c_tag) in dict_of_dicts["f_is_combined_numeric"]:
-            features.append(dict_of_dicts["f_is_combined_numeric"][("f_is_combined_numeric", c_tag)])
+        if c_tag in dict_of_dicts["f_is_combined_numeric"]:
+            features.append(dict_of_dicts["f_is_combined_numeric"][c_tag])
 
     # is numeric
     if "f_all_capital" in dict_of_dicts:
-        if ("f_all_capital", c_tag) in dict_of_dicts["f_all_capital"]:
-            features.append(dict_of_dicts["f_all_capital"][("f_all_capital", c_tag)])
+        if c_tag in dict_of_dicts["f_all_capital"]:
+            features.append(dict_of_dicts["f_all_capital"][c_tag])
     
     # is combined numeric
     if "f_first_capital" in dict_of_dicts:
-        if ("f_first_capital", c_tag) in dict_of_dicts["f_first_capital"]:
-            features.append(dict_of_dicts["f_first_capital"][("f_first_capital", c_tag)])
+        if c_tag in dict_of_dicts["f_first_capital"]:
+            features.append(dict_of_dicts["f_first_capital"][c_tag])
+
+     # length
+    if "f_length" in dict_of_dicts:
+        if (c_word_len, c_tag) in dict_of_dicts["f_length"]:
+            features.append(dict_of_dicts["f_length"][(c_word_len, c_tag)])
+
+    # prev length
+    if "f_prev_length" in dict_of_dicts:
+        if (prev_word_len, prev_tag) in dict_of_dicts["f_prev_length"]:
+            features.append(dict_of_dicts["f_prev_length"][(prev_word_len, prev_tag)])
+
+    # prev prev length
+    if "f_prev_prev_length" in dict_of_dicts:
+        if (prev_prev_word_len, prev_prev_tag) in dict_of_dicts["f_prev_prev_length"]:
+            features.append(dict_of_dicts["f_prev_prev_length"][(prev_prev_word_len, prev_prev_tag)])
+
+    # has hyphen
+    if "f_has_hyphen" in dict_of_dicts:  
+        if (c_word, c_tag) in dict_of_dicts["f_has_hyphen"]:
+            features.append(dict_of_dicts["f_has_hyphen"][(c_word, c_tag)])
+
+    # mid capital
+    if "f_mid_capital" in dict_of_dicts:
+        if (c_word, c_tag) in dict_of_dicts["f_mid_capital"]:
+            features.append(dict_of_dicts["f_mid_capital"][(c_word, c_tag)])
+
+    # curr prev capital
+    if "f_curr_prev_capital" in dict_of_dicts:
+        if (prev_word, c_word, c_tag) in dict_of_dicts["f_curr_prev_capital"]:
+                features.append(dict_of_dicts["f_curr_prev_capital"][(prev_word, c_word, c_tag)])
 
     return features
 
@@ -334,7 +435,8 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 def preprocess_train(train_path, threshold, run_mode="test1"):
     # Statistics
     if run_mode == "test1":
-        filtered_feature_list = ["f100",] # "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital"]
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107",] # "f_is_numeric", "f_is_combined_numeric", 
+                                # "f_all_capital", "f_first_capital", "f_length", "f_prev_length", "f_prev_prev_length", "f_has_hyphen", "f_curr_prev_capital"]
     elif run_mode == "comp1":
         filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
     elif run_mode == "test2":
