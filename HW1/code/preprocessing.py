@@ -1,27 +1,27 @@
 from scipy import sparse
 from collections import OrderedDict, defaultdict
 import numpy as np
-from typing import List, Dict, Tuple, bool
+from typing import List, Dict, Tuple
 
 
 WORD = 0
 TAG = 1
 
 
-def search_numbers_in_word(word:str) -> Tuple[bool, bool]:
+def search_numbers_in_word(word: str) -> Tuple[bool, bool]:
     """
     Checks if there are numeric parts in a string (word).
     Args:
-        word (str): _description_
+        word (str): string word
 
     Returns:
         Tuple[bool, bool]: first element- True if all the string is numeric, 
-                           second element- True if only part of the string is numric
+                           second element- True if only part of the string is numeric
     """
     is_all_numeric = False
     is_combined_numeric = False
     try:
-        float(word)
+        float(word.replace(',', ''))
         is_all_numeric = True
         return is_all_numeric, is_combined_numeric
     except ValueError:
@@ -33,12 +33,34 @@ def search_numbers_in_word(word:str) -> Tuple[bool, bool]:
     return is_all_numeric, is_combined_numeric
 
 
+def check_capital(word: str) -> Tuple[bool, bool]: 
+    """Checks if the word starts with capital letters or contains only capital letters.
+    Args:
+        word (str): string word
+
+    Returns:
+        Tuple[bool, bool]: first element- True if the string only contains capital letters, 
+                           second element- True if only the first letter is capital.
+    """
+    is_all_capital = False
+    first_capital = False
+    if word == "A" or word == "I":
+        first_capital = True # TODO: check with and without
+        return is_all_capital, first_capital
+    if word.isupper():
+        is_all_capital = True
+        return is_all_capital, first_capital    
+    if word[0].isupper():
+        first_capital = True
+    return is_all_capital, first_capital
+
+
 class FeatureStatistics:
     def __init__(self):
         self.n_total_features = 0  # Total number of features accumulated
 
         # Init all features dictionaries
-        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107"]  # the feature classes used in the code
+        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -75,7 +97,7 @@ class FeatureStatistics:
                         self.feature_rep_dict["f100"][(cur_word, cur_tag)] = 1
                     else:
                         self.feature_rep_dict["f100"][(cur_word, cur_tag)] += 1
-                    
+
                     for suffix_len in range(1, word_cutting_bound):
                         if (cur_word[-suffix_len:], cur_tag) not in self.feature_rep_dict["f101"]:
                             self.feature_rep_dict["f101"][(cur_word[-suffix_len:], cur_tag)] = 1
@@ -87,6 +109,31 @@ class FeatureStatistics:
                             self.feature_rep_dict["f102"][(cur_word[:prefix_len], cur_tag)] = 1
                         else:
                             self.feature_rep_dict["f102"][(cur_word[:prefix_len], cur_tag)] += 1
+
+                    # is numeric
+                    is_all_numeric, is_combined_numeric = search_numbers_in_word(cur_word)
+                    if is_all_numeric or is_combined_numeric:
+                        if is_all_numeric:
+                            numeric_feature = "f_is_numeric"
+                        else:
+                            numeric_feature = "f_is_combined_numeric"
+                        if (numeric_feature, cur_tag) not in self.feature_rep_dict[numeric_feature]:
+                            self.feature_rep_dict[numeric_feature][(numeric_feature, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict[numeric_feature][(numeric_feature, cur_tag)] += 1
+                    
+                    # capital letters
+                    is_all_capital, first_capital = check_capital(cur_word)
+                    if is_all_capital or first_capital:
+                        if is_all_capital:
+                            capital_feature = "f_all_capital"
+                        else:
+                            capital_feature = "f_first_capital"
+                        if (capital_feature, cur_tag) not in self.feature_rep_dict[capital_feature]:
+                            self.feature_rep_dict[capital_feature][(capital_feature, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict[capital_feature][(capital_feature, cur_tag)] += 1
+                    
 
                 # w[-2] = w[-1] = "*"
                 sentence = [("*", "*"), ("*", "*")]
@@ -136,7 +183,7 @@ class FeatureStatistics:
 
 
 class Feature2id:
-    def __init__(self, feature_statistics: FeatureStatistics, threshold: int):
+    def __init__(self, feature_statistics: FeatureStatistics, threshold: int, filtered_feature_list: List[str]):
         """
         @param feature_statistics: the feature statistics object
         @param threshold: the minimal number of appearances a feature should have to be taken
@@ -147,16 +194,7 @@ class Feature2id:
         self.n_total_features = 0  # Total number of features accumulated
 
         # Init all features dictionaries
-        self.feature_to_idx = {
-            "f100": OrderedDict(),
-            "f101": OrderedDict(),
-            "f102": OrderedDict(),
-            "f103": OrderedDict(),
-            "f104": OrderedDict(),
-            "f105": OrderedDict(),
-            "f106": OrderedDict(),
-            "f107": OrderedDict(),
-        }
+        self.feature_to_idx = {feature: OrderedDict() for feature in filtered_feature_list}
         self.represent_input_with_features = OrderedDict()
         self.histories_matrix = OrderedDict()
         self.histories_features = OrderedDict()
@@ -225,53 +263,92 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     features = []
 
     # f100
-    if (c_word, c_tag) in dict_of_dicts["f100"]:
-        features.append(dict_of_dicts["f100"][(c_word, c_tag)])
+    if "f100" in dict_of_dicts:
+        if (c_word, c_tag) in dict_of_dicts["f100"]:
+            features.append(dict_of_dicts["f100"][(c_word, c_tag)])
 
     # calculating maximum cut size for prefix and suffix
     # f101
     word_cutting_bound = min(len(c_word) + 1, 5)
-    for suffix_len in range(1, min(word_cutting_bound + 1, 5)):
-        word_suffix = c_word[-suffix_len:]
-    if (word_suffix, c_tag) in dict_of_dicts["f101"]:
-        features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
+    if "f101" in dict_of_dicts:
+        for suffix_len in range(1, min(word_cutting_bound + 1, 5)):
+            word_suffix = c_word[-suffix_len:]
+        if (word_suffix, c_tag) in dict_of_dicts["f101"]:
+            features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
 
     # f102
-    for prefix_len in range(1, min(word_cutting_bound + 1, 5)):
-        word_prefix = c_word[:prefix_len]
-    if (word_prefix, c_tag) in dict_of_dicts["f102"]:
-        features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
+    if "f102" in dict_of_dicts:
+        for prefix_len in range(1, min(word_cutting_bound + 1, 5)):
+            word_prefix = c_word[:prefix_len]
+        if (word_prefix, c_tag) in dict_of_dicts["f102"]:
+            features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
 
     # f103
-    if (prev_prev_tag, prev_tag, c_tag) in dict_of_dicts["f103"]:
-        features.append(dict_of_dicts["f103"][(prev_prev_tag, prev_tag,c_tag)])
+    if "f103" in dict_of_dicts: 
+        if (prev_prev_tag, prev_tag, c_tag) in dict_of_dicts["f103"]:
+            features.append(dict_of_dicts["f103"][(prev_prev_tag, prev_tag,c_tag)])
 
     # f104
-    if (prev_tag,c_tag) in dict_of_dicts["f104"]:
-        features.append(dict_of_dicts["f104"][(prev_tag,c_tag)])
+    if "f104" in dict_of_dicts: 
+        if (prev_tag,c_tag) in dict_of_dicts["f104"]:
+            features.append(dict_of_dicts["f104"][(prev_tag,c_tag)])
 
     # f105
-    if c_tag in dict_of_dicts["f105"]:
-        features.append(dict_of_dicts["f105"][c_tag])
+    if "f105" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f105"]:
+            features.append(dict_of_dicts["f105"][c_tag])
 
     # f106
-    if (prev_word, c_tag) in dict_of_dicts["f106"]:
-        features.append(dict_of_dicts["f106"][(prev_word, c_tag)])
+    if "f106" in dict_of_dicts:
+        if (prev_word, c_tag) in dict_of_dicts["f106"]:
+            features.append(dict_of_dicts["f106"][(prev_word, c_tag)])
 
     # f107
-    if (next_word, c_tag) in dict_of_dicts["f107"]:
-        features.append(dict_of_dicts["f107"][(next_word, c_tag)])
+    if "f107" in dict_of_dicts:
+        if (next_word, c_tag) in dict_of_dicts["f107"]:
+            features.append(dict_of_dicts["f107"][(next_word, c_tag)])
+
+    # is numeric
+    if "f_is_numeric" in dict_of_dicts:
+        if ("f_is_numeric", c_tag) in dict_of_dicts["f_is_numeric"]:
+            features.append(dict_of_dicts["f_is_numeric"][("f_is_numeric", c_tag)])
+    
+    # is combined numeric
+    if "f_is_combined_numeric" in dict_of_dicts:
+        if ("f_is_combined_numeric", c_tag) in dict_of_dicts["f_is_combined_numeric"]:
+            features.append(dict_of_dicts["f_is_combined_numeric"][("f_is_combined_numeric", c_tag)])
+
+    # is numeric
+    if "f_all_capital" in dict_of_dicts:
+        if ("f_all_capital", c_tag) in dict_of_dicts["f_all_capital"]:
+            features.append(dict_of_dicts["f_all_capital"][("f_all_capital", c_tag)])
+    
+    # is combined numeric
+    if "f_first_capital" in dict_of_dicts:
+        if ("f_first_capital", c_tag) in dict_of_dicts["f_first_capital"]:
+            features.append(dict_of_dicts["f_first_capital"][("f_first_capital", c_tag)])
 
     return features
 
 
-def preprocess_train(train_path, threshold):
+def preprocess_train(train_path, threshold, run_mode="test1"):
     # Statistics
+    if run_mode == "test1":
+        filtered_feature_list = ["f100",] # "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital"]
+    elif run_mode == "comp1":
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
+    elif run_mode == "test2":
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
+    elif run_mode == "comp2":
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
+    else:
+        raise ValueError(d=f"Unknown run_mode. Expected one of [test1, comp1, test2, comp2], got {run_mode}")
+    
     statistics = FeatureStatistics()
     statistics.get_word_tag_pair_count(train_path)
 
     # feature2id
-    feature2id = Feature2id(statistics, threshold)
+    feature2id = Feature2id(statistics, threshold, filtered_feature_list)
     feature2id.get_features_idx()
     feature2id.calc_represent_input_with_features()
     print(feature2id.n_total_features)
