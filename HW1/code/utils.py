@@ -8,6 +8,8 @@ import pickle
 
 
 TAG = 1
+WORD = 0
+
 
 def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dict[Tuple[str, str], int]]:
     """Calculate total accuracy and top 10 mistakes confusion matrix
@@ -58,9 +60,9 @@ def k_fold_cv(data_path: str, weights_path:str, k_folds: int, threshold: int=1, 
 
     tagged = "test" in data_path
     file = read_test(data_path, tagged=tagged)
-    sentences = [sen[TAG][2:-1] for sen in file]
-    indices = [i for i in range(len(sentences))]  
-    indices = np.random.shuffle(indices)  
+    sentences = [sen[WORD][2:-1] for sen in file]
+    indices = np.array([i for i in range(len(sentences))]).astype(int) 
+    np.random.shuffle(indices)  
     fold_size = len(sentences) // k_folds
     accuracy_list = [] 
     for i in range(k_folds):

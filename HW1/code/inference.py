@@ -69,8 +69,7 @@ def memm_viterbi(sentence: List[str], pre_trained_weights: np.ndarray, feature2i
     sentence = sentence[:-1] # remove "~" from sentence
     n = len(sentence)
     all_tags = list(feature2id.feature_statistics.tags)
-    pi_dict, bp_dict, q_dict, preds = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id)
-    n_pi_values = []
+    pi_dict, bp_dict, q_dict, preds, n_pi_values = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id)
     
     for k in range(4, n):
         for prev_prev_tag in all_tags:
@@ -96,7 +95,7 @@ def memm_viterbi(sentence: List[str], pre_trained_weights: np.ndarray, feature2i
 
 
 def first_iter_viterbi(sentence: List[str], n: int, all_tags: List[str], pre_trained_weights: np.ndarray, feature2id: Feature2id, 
-                       b: int = None) -> Union[Tuple[dict, dict, dict, dict, List[str]], Tuple[dict, dict, dict, List[str]]]:
+                       b: int = None) -> Union[Tuple[dict, dict, dict, dict, List[str], List], Tuple[dict, dict, dict, List[str]]]:
     """Initializa viterbi algorithm and run first step(s).
 
     Args:
@@ -113,33 +112,40 @@ def first_iter_viterbi(sentence: List[str], n: int, all_tags: List[str], pre_tra
         - q_dict: q values dictionary
         - best_tags_pairs (optional): dictionary of the best b states that will continue to the next iteration
         - preds: list of initialized predictions
+        - n_pi_values: list of last word probabilites
     """
     pi_dict, bp_dict, preds = viterbi_initialization(n, all_tags)
     q_dict = {}
+    n_pi_values = []
     # Previous tags initializations 
     prev_prev_tag = "*"
     prev_tag = "*"
+    # k = 2
     update_q_dict(q_dict, sentence, 2, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
     values = []
     for curr_tag in all_tags:
         curr_value = q_dict[(prev_prev_tag, prev_tag, curr_tag, 2)] * 1
         values.append([prev_tag, curr_tag, curr_value])
         bp_dict[(2, prev_tag, curr_tag)], pi_dict[(2, prev_tag, curr_tag)] = prev_prev_tag, curr_value
+        if n == 3:
+            n_pi_values.append([prev_tag, curr_tag, pi_dict[(2, prev_tag, curr_tag)]])
     if b: # beam search- find options for the next iteration
         sorted_values = sorted(values, key= lambda x: x[2], reverse=True)[:b]
         best_tags_pairs = defaultdict(list)
         for prev_tag, curr_tag, _ in sorted_values:
             best_tags_pairs[curr_tag].append(prev_tag)
-        return pi_dict, bp_dict, q_dict, best_tags_pairs, preds
-    else: # continue to k = 3
+        return pi_dict, bp_dict, q_dict, best_tags_pairs, preds, n_pi_values
+    elif n > 3: # continue to k = 3 if needed
         for prev_tag in all_tags:
             update_q_dict(q_dict, sentence, 3, pre_trained_weights, feature2id, all_tags, prev_tag, prev_prev_tag)
         for prev_tag in all_tags:
             for curr_tag in all_tags:
                 curr_value = q_dict[(prev_prev_tag, prev_tag, curr_tag, 3)] * pi_dict[(2, prev_prev_tag, prev_tag)]
                 bp_dict[(3, prev_tag, curr_tag)], pi_dict[(3, prev_tag, curr_tag)] = prev_prev_tag, curr_value
+                if n == 4:
+                    n_pi_values.append([prev_tag, curr_tag, pi_dict[(3, prev_tag, curr_tag)]])
 
-    return pi_dict, bp_dict, q_dict, preds
+    return pi_dict, bp_dict, q_dict, preds, n_pi_values
 
 
 def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, feature2id: Feature2id, b: int) -> List[str]:
@@ -157,8 +163,7 @@ def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, featu
     sentence = sentence[:-1] # remove "~" from sentence
     n = len(sentence)
     all_tags = list(feature2id.feature_statistics.tags)
-    pi_dict, bp_dict, q_dict, best_tags_pairs, preds = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id, b)
-    n_pi_values = []
+    pi_dict, bp_dict, q_dict, best_tags_pairs, preds, n_pi_values = first_iter_viterbi(sentence, n, all_tags, pre_trained_weights, feature2id, b)
    
     for k in range(3, n):
         for prev_tag, prev_prev_tags_list in best_tags_pairs.items():
@@ -176,13 +181,14 @@ def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, featu
                 
                 bp_dict[(k, prev_tag, curr_tag)], pi_dict[(k, prev_tag, curr_tag)] = max(prev_values, key=lambda x: x[1])
 
+                if k == n-1:
+                    n_pi_values.append([prev_tag, curr_tag, pi_dict[(k, prev_tag, curr_tag)]])
+
         sorted_values = sorted(values, key= lambda x: x[2], reverse=True)[:b]
         best_tags_pairs = defaultdict(list)
         for prev_tag, curr_tag, _ in sorted_values:
             best_tags_pairs[curr_tag].append(prev_tag)
-
-        if k == n-1:
-            n_pi_values.append([prev_tag, curr_tag, pi_dict[(k, prev_tag, curr_tag)]])
+        
 
     # setting last 2 words tags 
     preds[n-2], preds[n-1], _ = max(n_pi_values, key=lambda x: x[2])
