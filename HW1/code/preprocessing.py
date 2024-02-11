@@ -65,7 +65,7 @@ def check_mid_word_capital(word: str) -> bool:
     Returns:
         bool: True if there is a capital letter in the middle of the word and False otherwise
     """
-    if  not word.isupper() and not word[0].isupper() and len(word) > 1 and "-" not in word:
+    if  not word.isupper() and not word[0].isupper() and len(word) > 1:
         for c in word[1:]:
             if c.isupper():
                 return True
@@ -83,7 +83,8 @@ def count_vowels(word: str) -> int:
 
 
 def is_preposition(word: str) -> bool:
-    prepositions = ["about", "of", "on", "at", "in", "from", "within", "since", "than", "with", "under", "across", "above", "by", "between"]
+    prepositions = ["about", "of", "on", "at", "in", "from", "within", "since", "than", "with", "under", "across", "above", "by", "between",
+                    "along", "down", "up", "ago"]
     if word in prepositions:
         return True
     return False
@@ -95,6 +96,39 @@ def is_determiner(word: str) -> bool:
         return True
     return False
 
+def adjective_suffixes(word: str) -> bool:
+    suffixes = ["ant", "ent", "ful", "able", "is", "less", "like", "ous", "ose", "some", "ible", "ic", "ist", "y", "ive", "ent", "al", "an", "ian", "ary", "ish", "ile", "or"]
+    word_len = len(word)
+    for suffix in suffixes:
+        suffix_len = len(suffix)
+        if suffix_len <= word_len and word[-suffix_len:] == suffix:
+            return True
+    return False
+
+def plural_suffixes(word: str) -> bool:
+    suffixes = ["s", "es", "ies", "ves", "en"]
+    word_len = len(word)
+    for suffix in suffixes:
+        suffix_len = len(suffix)
+        if suffix_len <= word_len and word[-suffix_len:] == suffix:
+            return True
+    return False
+
+def past_suffixes(word: str) -> bool:
+    suffixes = ["ed", "d", "id", "t", "en", "ought"]
+    word_len = len(word)
+    for suffix in suffixes:
+        suffix_len = len(suffix)
+        if suffix_len <= word_len and word[-suffix_len:] == suffix:
+            return True
+    return False
+
+def present_suffix(word: str) -> bool:
+    suffix = "ing"
+    if len(suffix) <= len(word) and word[-len(suffix):] == suffix:
+        return True
+    return False
+    
 
 class FeatureStatistics:
     def __init__(self):
@@ -102,8 +136,10 @@ class FeatureStatistics:
 
         # Init all features dictionaries
         feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
-                              "f_length", "f_prev_length", "f_prev_prev_length", "f_next_length", "f_has_hyphen", "f_mid_capital", "f_curr_prev_capital",
-                              "f106_prev_tag", "f106_lower", "f_vowels", "f_prev_preposition", "f_prev_prev_preposition", "f_prev_determiner"]  # the feature classes used in the code
+                              "f_length", "f_prev_length", "f_prev_prev_length", "f_next_length", "f_has_hyphen", "f_has_dot", "f_has_apostrophe",
+                              "f_has_adj_suffix", "f_has_plural_suffix", "f_has_past_suffix", "f_has_present_suffix",
+                              "f_mid_capital", "f_curr_prev_capital", "f106_prev_tag", "f106_lower", "f_vowels", "f_prev_preposition", "f_prev_prev_preposition", "f_prev_determiner",
+                              "f_is_preposition"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -132,7 +168,7 @@ class FeatureStatistics:
                     cur_word_len = len(cur_word)
                     self.tags.add(cur_tag)
                     # calculating maximum cut size for prefix and suffix
-                    word_cutting_bound = min(len(cur_word) + 1, 5)
+                    word_cutting_bound = min(len(cur_word) + 1, 6)
                     # count seperatly words and count 
                     self.tags_counts[cur_tag] += 1
                     self.words_count[cur_word] += 1
@@ -187,17 +223,56 @@ class FeatureStatistics:
 
                     # has_hyphen
                     if "-" in cur_word: 
-                        if (cur_word, cur_tag) not in self.feature_rep_dict["f_has_hyphen"]:
-                            self.feature_rep_dict["f_has_hyphen"][(cur_word, cur_tag)] = 1
+                        if cur_tag not in self.feature_rep_dict["f_has_hyphen"]:
+                            self.feature_rep_dict["f_has_hyphen"][cur_tag] = 1
                         else:
-                            self.feature_rep_dict["f_has_hyphen"][(cur_word, cur_tag)] += 1
+                            self.feature_rep_dict["f_has_hyphen"][cur_tag] += 1
+                    
+                    # has_dot
+                    if "." in cur_word and search_numbers_in_word(cur_word) == (False, False): 
+                        if cur_tag not in self.feature_rep_dict["f_has_dot"]:
+                            self.feature_rep_dict["f_has_dot"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_dot"][cur_tag] += 1
+                    
+                    # has_apostrophe
+                    if "'" in cur_word: 
+                        if cur_tag not in self.feature_rep_dict["f_has_apostrophe"]:
+                            self.feature_rep_dict["f_has_apostrophe"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_apostrophe"][cur_tag] += 1
+
+                    if adjective_suffixes(cur_word):
+                        if cur_tag not in self.feature_rep_dict["f_has_adj_suffix"]:
+                            self.feature_rep_dict["f_has_adj_suffix"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_adj_suffix"][cur_tag] += 1
+                    
+                    if plural_suffixes(cur_word):
+                        if cur_tag not in self.feature_rep_dict["f_has_plural_suffix"]:
+                            self.feature_rep_dict["f_has_plural_suffix"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_plural_suffix"][cur_tag] += 1
+
+                    if past_suffixes(cur_word):
+                        if cur_tag not in self.feature_rep_dict["f_has_past_suffix"]:
+                            self.feature_rep_dict["f_has_past_suffix"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_past_suffix"][cur_tag] += 1
+
+                    if present_suffix(cur_word):
+                        if cur_tag not in self.feature_rep_dict["f_has_present_suffix"]:
+                            self.feature_rep_dict["f_has_present_suffix"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_present_suffix"][cur_tag] += 1
+
                     
                     # mid capital
                     if check_mid_word_capital(cur_word):
-                        if (cur_word, cur_tag) not in self.feature_rep_dict["f_mid_capital"]:
-                            self.feature_rep_dict["f_mid_capital"][(cur_word, cur_tag)] = 1
+                        if cur_tag not in self.feature_rep_dict["f_mid_capital"]:
+                            self.feature_rep_dict["f_mid_capital"][cur_tag] = 1
                         else:
-                            self.feature_rep_dict["f_mid_capital"][(cur_word, cur_tag)] += 1
+                            self.feature_rep_dict["f_mid_capital"][cur_tag] += 1
 
                      # vowels
                     vowels_count = count_vowels(cur_word)
@@ -206,6 +281,11 @@ class FeatureStatistics:
                     else:
                         self.feature_rep_dict["f_vowels"][(vowels_count, cur_tag)] += 1
 
+                    if is_preposition(cur_word_lower):
+                        if (cur_word_lower, cur_tag) not in self.feature_rep_dict["f_is_preposition"]:
+                            self.feature_rep_dict["f_is_preposition"][(cur_word_lower, cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f_is_preposition"][(cur_word_lower, cur_tag)] += 1
 
                 # w[-2] = w[-1] = "*"
                 sentence = [("*", "*"), ("*", "*")]
@@ -412,7 +492,7 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
     # calculating maximum cut size for prefix and suffix
     # f101
-    word_cutting_bound = min(len(c_word) + 1, 5)
+    word_cutting_bound = min(len(c_word) + 1, 6)
     if "f101" in dict_of_dicts:
         for suffix_len in range(1, word_cutting_bound):
             word_suffix = c_word[-suffix_len:]
@@ -460,24 +540,26 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if (next_word, c_tag) in dict_of_dicts["f107"]:
             features.append(dict_of_dicts["f107"][(next_word, c_tag)])
 
+    is_all_numeric, is_combined_numeric = search_numbers_in_word(c_word)
+    is_all_capital, first_capital = check_capital(c_word)
     # is numeric
     if "f_is_numeric" in dict_of_dicts:
-        if c_tag in dict_of_dicts["f_is_numeric"]:
+        if is_all_numeric and c_tag in dict_of_dicts["f_is_numeric"]:
             features.append(dict_of_dicts["f_is_numeric"][c_tag])
     
     # is combined numeric
-    if "f_is_combined_numeric" in dict_of_dicts:
-        if c_tag in dict_of_dicts["f_is_combined_numeric"]:
+    if "f_is_combined_numeric" in dict_of_dicts :
+        if is_combined_numeric and c_tag in dict_of_dicts["f_is_combined_numeric"]:
             features.append(dict_of_dicts["f_is_combined_numeric"][c_tag])
 
     # is numeric
     if "f_all_capital" in dict_of_dicts:
-        if c_tag in dict_of_dicts["f_all_capital"]:
+        if is_all_capital and c_tag in dict_of_dicts["f_all_capital"]:
             features.append(dict_of_dicts["f_all_capital"][c_tag])
     
     # is combined numeric
     if "f_first_capital" in dict_of_dicts:
-        if c_tag in dict_of_dicts["f_first_capital"]:
+        if first_capital and c_tag in dict_of_dicts["f_first_capital"]:
             features.append(dict_of_dicts["f_first_capital"][c_tag])
 
      # length
@@ -502,13 +584,23 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
     # has hyphen
     if "f_has_hyphen" in dict_of_dicts:  
-        if (c_word, c_tag) in dict_of_dicts["f_has_hyphen"]:
-            features.append(dict_of_dicts["f_has_hyphen"][(c_word, c_tag)])
+        if c_tag in dict_of_dicts["f_has_hyphen"] and "-" in c_word:
+            features.append(dict_of_dicts["f_has_hyphen"][c_tag])
+
+    # has dot
+    if "f_has_dot" in dict_of_dicts:  
+        if c_tag in dict_of_dicts["f_has_dot"] and "." in c_word and search_numbers_in_word(c_word) == (False, False):
+            features.append(dict_of_dicts["f_has_dot"][c_tag])
+
+    # has apostrophe
+    if "f_has_apostrophe" in dict_of_dicts:  
+        if c_tag in dict_of_dicts["f_has_apostrophe"] and "'" in c_word:
+            features.append(dict_of_dicts["f_has_apostrophe"][c_tag])
 
     # mid capital
     if "f_mid_capital" in dict_of_dicts:
-        if (c_word, c_tag) in dict_of_dicts["f_mid_capital"]:
-            features.append(dict_of_dicts["f_mid_capital"][(c_word, c_tag)])
+        if c_tag in dict_of_dicts["f_mid_capital"] and check_mid_word_capital(c_word):
+            features.append(dict_of_dicts["f_mid_capital"][c_tag])
 
     # curr prev capital
     if "f_curr_prev_capital" in dict_of_dicts:
@@ -535,22 +627,40 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if (prev_word_lower, c_tag) in dict_of_dicts["f_prev_determiner"]:
             features.append(dict_of_dicts["f_prev_determiner"][(prev_word_lower, c_tag)])
 
+    if "f_has_adj_suffix" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f_has_adj_suffix"] and adjective_suffixes(c_word):
+            features.append(dict_of_dicts["f_has_adj_suffix"][c_tag])
+
+    if "f_has_plural_suffix" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f_has_plural_suffix"] and plural_suffixes(c_word):
+            features.append(dict_of_dicts["f_has_plural_suffix"][c_tag])
+
+    if "f_has_past_suffix" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f_has_past_suffix"] and past_suffixes(c_word):
+            features.append(dict_of_dicts["f_has_past_suffix"][c_tag])
+    
+    if "f_has_present_suffix" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f_has_present_suffix"] and present_suffix(c_word):
+            features.append(dict_of_dicts["f_has_present_suffix"][c_tag])
+
+    if "f_is_preposition" in dict_of_dicts:
+        if (c_word_lower, c_tag) in dict_of_dicts["f_is_preposition"] and is_preposition(c_word_lower):
+            features.append(dict_of_dicts["f_is_preposition"][(c_word_lower, c_tag)])
+
     return features
 
 
 def preprocess_train(train_path, threshold, run_mode="test1"):
     # Statistics
     if run_mode == "test1":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
-                              "f_length", "f_has_hyphen"]
-                            #    "f_prev_length", "f_prev_prev_length", "f_next_length", "f_mid_capital", "f_curr_prev_capital",
-                            #    "f_vowels", "f_prev_preposition", "f_prev_prev_preposition", "f_prev_determiner"]
-                                # ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", 
-                                # "f_all_capital", "f_first_capital", "f_length", "f_prev_determiner"] # "f_prev_length",  "f_next_length" "f_has_hyphen", "f_curr_prev_capital"]
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106_prev_tag", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+                              "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",
+                              "f_prev_preposition", "f_is_preposition"] 
     elif run_mode == "comp1":
         filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
     elif run_mode == "comp2":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106_prev_tag", "f107",  "f_is_numeric", "f_is_combined_numeric",
+                                "f_all_capital", "f_first_capital", "f_length", "f_mid_capital", "f_has_hyphen", "f_curr_prev_capital", "f_prev_determiner"]
     else:
         raise ValueError(d=f"Unknown run_mode. Expected one of [test1, comp1, comp2], got {run_mode}")
     

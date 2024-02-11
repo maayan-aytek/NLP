@@ -24,6 +24,7 @@ def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dic
     test_list = read_test(labeled_test_path, tagged=True)
     preds_list = read_test(prediction_path, tagged=True)
     confusion_matrix = {}
+    mistakes_matrix = {}
     count_true_preds = 0
     count_all_preds = 0
     for test, pred in zip(test_list, preds_list):
@@ -39,10 +40,16 @@ def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dic
             else:
                 if (test_label, pred_label) not in confusion_matrix.keys():
                     confusion_matrix[(test_label, pred_label)] = 1
+                    mistakes_matrix[(test_label, pred_label)] = [test[WORD][i + 2]]
                 else:
                     confusion_matrix[(test_label, pred_label)] += 1
+                    mistakes_matrix[(test_label, pred_label)].append([test[WORD][i + 2]])
     sorted_mistakes = sorted(confusion_matrix.items(), key=lambda x: x[1], reverse=True)
     top_10_mistakes_dict = dict(sorted_mistakes[:10])
+    top_mistakes_matrix = {k:v for k, v in mistakes_matrix.items() if k in top_10_mistakes_dict}
+    for key in top_mistakes_matrix:
+        print(key)
+        print(top_mistakes_matrix[key])
     accuracy_score = count_true_preds / count_all_preds
     return accuracy_score, top_10_mistakes_dict
 

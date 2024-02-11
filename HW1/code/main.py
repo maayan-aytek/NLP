@@ -6,9 +6,9 @@ from utils import eval_preds, k_fold_cv
 
 
 def main():
-    threshold = 1 
+    threshold = 2
     run_mode = "test1"
-    lam = 1 if "1" in run_mode else 0.01
+    lam = 0.7 if "1" in run_mode else 0.01
     train_path = "data/train1.wtag" if "1" in run_mode else "data/train2.wtag"
     if run_mode == "test1":
         test_path = "data/test1.wtag" 
