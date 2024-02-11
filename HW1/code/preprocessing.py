@@ -46,7 +46,7 @@ def check_capital(word: str) -> Tuple[bool, bool]:
     is_all_capital = False
     first_capital = False
     if word == "A" or word == "I":
-        first_capital = True # TODO: check with and without
+        first_capital = True
         return is_all_capital, first_capital
     if word.isupper():
         is_all_capital = True
@@ -72,17 +72,15 @@ def check_mid_word_capital(word: str) -> bool:
     return False
 
 
-def count_vowels(word: str) -> int:
-    vowels = ["i", "a", "o", "u", "e"]
-    lower_word = word.lower()
-    count = 0
-    for c in lower_word:
-        if c in vowels:
-            count += 1
-    return count
-
-
 def is_preposition(word: str) -> bool:
+    """Checks if a word is a proposition (from a static list)
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word is a proposition from the list, False otherwise
+    """
     prepositions = ["about", "of", "on", "at", "in", "from", "within", "since", "than", "with", "under", "across", "above", "by", "between",
                     "along", "down", "up", "ago"]
     if word in prepositions:
@@ -91,12 +89,29 @@ def is_preposition(word: str) -> bool:
 
 
 def is_determiner(word: str) -> bool:
+    """Checks if a word is a determiner (from a static list)
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word is a determiner from the list, False otherwise
+    """
     determiners = ["a", "an", "the", "this", "that", "these", "those", "my", "yours", "is", "her", "its", "our", "their"]
     if word in determiners:
         return True
     return False
 
+
 def adjective_suffixes(word: str) -> bool:
+    """Checks if a word has a adjective known suffix (from a static list)
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word has an adjective suffix from the list, False otherwise
+    """
     suffixes = ["ant", "ent", "ful", "able", "is", "less", "like", "ous", "ose", "some", "ible", "ic", "ist", "y", "ive", "ent", "al", "an", "ian", "ary", "ish", "ile", "or"]
     word_len = len(word)
     for suffix in suffixes:
@@ -105,7 +120,16 @@ def adjective_suffixes(word: str) -> bool:
             return True
     return False
 
+
 def plural_suffixes(word: str) -> bool:
+    """Checks if a word has a plural noun known suffix (from a static list)
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word has an plural suffix from the list, False otherwise
+    """
     suffixes = ["s", "es", "ies", "ves", "en"]
     word_len = len(word)
     for suffix in suffixes:
@@ -114,7 +138,16 @@ def plural_suffixes(word: str) -> bool:
             return True
     return False
 
+
 def past_suffixes(word: str) -> bool:
+    """Checks if a word has a past verb known suffix (from a static list)
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word has an past suffix from the list, False otherwise
+    """
     suffixes = ["ed", "d", "id", "t", "en", "ought"]
     word_len = len(word)
     for suffix in suffixes:
@@ -123,10 +156,37 @@ def past_suffixes(word: str) -> bool:
             return True
     return False
 
+
 def present_suffix(word: str) -> bool:
+    """Checks if a word has a present verb known suffix - ing
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word has an ing suffix, False otherwise
+    """
     suffix = "ing"
     if len(suffix) <= len(word) and word[-len(suffix):] == suffix:
         return True
+    return False
+
+
+def medical_suffix(word: str) -> bool:
+    """Checks if a word has medical known suffix (from a static list)- used in model 2
+
+    Args:
+        word (str): string word
+
+    Returns:
+        bool: True if the word has a medical suffix from the list, False otherwise
+    """
+    suffixes = ["oid", "itis", "ine", "ase", "yl", "sol"]
+    word_len = len(word)
+    for suffix in suffixes:
+        suffix_len = len(suffix)
+        if suffix_len <= word_len and word[-suffix_len:] == suffix:
+            return True
     return False
     
 
@@ -136,10 +196,10 @@ class FeatureStatistics:
 
         # Init all features dictionaries
         feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
-                              "f_length", "f_prev_length", "f_prev_prev_length", "f_next_length", "f_has_hyphen", "f_has_dot", "f_has_apostrophe",
+                              "f_length", "f_next_length", "f_has_hyphen", "f_has_dot", "f_has_apostrophe",
                               "f_has_adj_suffix", "f_has_plural_suffix", "f_has_past_suffix", "f_has_present_suffix",
-                              "f_mid_capital", "f_curr_prev_capital", "f106_prev_tag", "f106_lower", "f_vowels", "f_prev_preposition", "f_prev_prev_preposition", "f_prev_determiner",
-                              "f_is_preposition"]  # the feature classes used in the code
+                              "f_mid_capital", "f106_prev_tag", "f_prev_preposition", "f_prev_determiner",
+                              "f_is_preposition", "f_has_medical_suffix", "f101_5", "f101_6", "f102_5", "f102_6"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -168,7 +228,9 @@ class FeatureStatistics:
                     cur_word_len = len(cur_word)
                     self.tags.add(cur_tag)
                     # calculating maximum cut size for prefix and suffix
-                    word_cutting_bound = min(len(cur_word) + 1, 6)
+                    word_cutting_bound_4 = min(len(cur_word) + 1, 5)
+                    word_cutting_bound_5 = min(len(cur_word) + 1, 6)
+                    word_cutting_bound_6 = min(len(cur_word) + 1, 7)
                     # count seperatly words and count 
                     self.tags_counts[cur_tag] += 1
                     self.words_count[cur_word] += 1
@@ -179,17 +241,43 @@ class FeatureStatistics:
                     else:
                         self.feature_rep_dict["f100"][(cur_word, cur_tag)] += 1
 
-                    for suffix_len in range(1, word_cutting_bound):
+                    for suffix_len in range(1, word_cutting_bound_4):
                         if (cur_word[-suffix_len:], cur_tag) not in self.feature_rep_dict["f101"]:
                             self.feature_rep_dict["f101"][(cur_word[-suffix_len:], cur_tag)] = 1
                         else:
                             self.feature_rep_dict["f101"][(cur_word[-suffix_len:], cur_tag)] += 1
                     
-                    for prefix_len in range(1, word_cutting_bound):
+                    for prefix_len in range(1, word_cutting_bound_4):
                         if (cur_word[:prefix_len], cur_tag) not in self.feature_rep_dict["f102"]:
                             self.feature_rep_dict["f102"][(cur_word[:prefix_len], cur_tag)] = 1
                         else:
                             self.feature_rep_dict["f102"][(cur_word[:prefix_len], cur_tag)] += 1
+
+                    # 101-102 with max 5 suffix
+                    for suffix_len in range(1, word_cutting_bound_5):
+                        if (cur_word[-suffix_len:], cur_tag) not in self.feature_rep_dict["f101_5"]:
+                            self.feature_rep_dict["f101_5"][(cur_word[-suffix_len:], cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f101_5"][(cur_word[-suffix_len:], cur_tag)] += 1
+                    
+                    for prefix_len in range(1, word_cutting_bound_5):
+                        if (cur_word[:prefix_len], cur_tag) not in self.feature_rep_dict["f102_5"]:
+                            self.feature_rep_dict["f102_5"][(cur_word[:prefix_len], cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f102_5"][(cur_word[:prefix_len], cur_tag)] += 1
+
+                    # 101-102 with max 6 suffix
+                    for suffix_len in range(1, word_cutting_bound_6):
+                        if (cur_word[-suffix_len:], cur_tag) not in self.feature_rep_dict["f101_6"]:
+                            self.feature_rep_dict["f101_6"][(cur_word[-suffix_len:], cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f101_6"][(cur_word[-suffix_len:], cur_tag)] += 1
+                    
+                    for prefix_len in range(1, word_cutting_bound_6):
+                        if (cur_word[:prefix_len], cur_tag) not in self.feature_rep_dict["f102_6"]:
+                            self.feature_rep_dict["f102_6"][(cur_word[:prefix_len], cur_tag)] = 1
+                        else:
+                            self.feature_rep_dict["f102_6"][(cur_word[:prefix_len], cur_tag)] += 1
 
                     # is numeric
                     is_all_numeric, is_combined_numeric = search_numbers_in_word(cur_word)
@@ -266,20 +354,18 @@ class FeatureStatistics:
                         else:
                             self.feature_rep_dict["f_has_present_suffix"][cur_tag] += 1
 
-                    
+                    if medical_suffix(cur_word):
+                        if cur_tag not in self.feature_rep_dict["f_has_medical_suffix"]:
+                            self.feature_rep_dict["f_has_medical_suffix"][cur_tag] = 1
+                        else:
+                            self.feature_rep_dict["f_has_medical_suffix"][cur_tag] += 1
+
                     # mid capital
                     if check_mid_word_capital(cur_word):
                         if cur_tag not in self.feature_rep_dict["f_mid_capital"]:
                             self.feature_rep_dict["f_mid_capital"][cur_tag] = 1
                         else:
                             self.feature_rep_dict["f_mid_capital"][cur_tag] += 1
-
-                     # vowels
-                    vowels_count = count_vowels(cur_word)
-                    if (vowels_count, cur_tag) not in self.feature_rep_dict["f_vowels"]:
-                        self.feature_rep_dict["f_vowels"][(vowels_count, cur_tag)] = 1
-                    else:
-                        self.feature_rep_dict["f_vowels"][(vowels_count, cur_tag)] += 1
 
                     if is_preposition(cur_word_lower):
                         if (cur_word_lower, cur_tag) not in self.feature_rep_dict["f_is_preposition"]:
@@ -299,13 +385,9 @@ class FeatureStatistics:
                     cur_word, cur_tag = sentence[i][WORD], sentence[i][TAG]
                     cur_word_lower = cur_word.lower()
                     prev_word, prev_tag = sentence[i - 1][WORD], sentence[i - 1][TAG]
-                    prev_word_len = len(prev_word)
                     prev_word_lower = prev_word.lower()
                     prev_prev_word, prev_prev_tag = sentence[i - 2][WORD], sentence[i - 2][TAG]
-                    prev_prev_word_lower = prev_prev_word.lower()
-                    prev_prev_word_len = len(prev_prev_word)
                     next_word = sentence[i + 1][WORD]
-                    next_word_lower = next_word.lower()
                     next_word_len = len(next_word)
 
                     history = (
@@ -333,11 +415,6 @@ class FeatureStatistics:
                     else:
                         self.feature_rep_dict["f106"][(prev_word, cur_tag)] += 1
                     
-                    if (prev_word_lower, cur_tag) not in self.feature_rep_dict["f106_lower"]:
-                        self.feature_rep_dict["f106_lower"][(prev_word_lower, cur_tag)] = 1
-                    else:
-                        self.feature_rep_dict["f106_lower"][(prev_word_lower, cur_tag)] += 1
-                    
                     if (prev_word, prev_tag, cur_tag) not in self.feature_rep_dict["f106_prev_tag"]:
                         self.feature_rep_dict["f106_prev_tag"][(prev_word, prev_tag, cur_tag)] = 1
                     else:
@@ -348,30 +425,11 @@ class FeatureStatistics:
                     else:
                         self.feature_rep_dict["f107"][(next_word, cur_tag)] += 1
 
-                    # f_prev_length
-                    if (prev_word_len, cur_tag) not in self.feature_rep_dict["f_prev_length"]:
-                        self.feature_rep_dict["f_prev_length"][(prev_word_len, cur_tag)] = 1
-                    else:
-                        self.feature_rep_dict["f_prev_length"][(prev_word_len, cur_tag)] += 1
-
-                    # f_prev_prev_length
-                    if (prev_prev_word_len, cur_tag) not in self.feature_rep_dict["f_prev_prev_length"]:
-                        self.feature_rep_dict["f_prev_prev_length"][(prev_prev_word_len, cur_tag)] = 1
-                    else:
-                        self.feature_rep_dict["f_prev_prev_length"][(prev_prev_word_len, cur_tag)] += 1
-                    
                     # f_next_length
                     if (next_word_len, cur_tag) not in self.feature_rep_dict["f_next_length"]:
                         self.feature_rep_dict["f_next_length"][(next_word_len, cur_tag)] = 1
                     else:
                         self.feature_rep_dict["f_next_length"][(next_word_len, cur_tag)] += 1
-
-                    # curr prev capital
-                    if check_capital(prev_word)[1] and check_capital(cur_word)[1]:
-                        if (prev_word, cur_word, cur_tag) not in self.feature_rep_dict["f_curr_prev_capital"]:
-                            self.feature_rep_dict["f_curr_prev_capital"][(prev_word, cur_word, cur_tag)] = 1
-                        else:
-                            self.feature_rep_dict["f_curr_prev_capital"][(prev_word, cur_word, cur_tag)] += 1
                     
                      # prepositions
                     if is_preposition(prev_word_lower):
@@ -379,12 +437,6 @@ class FeatureStatistics:
                             self.feature_rep_dict["f_prev_preposition"][(prev_word_lower, cur_tag)] = 1
                         else:
                             self.feature_rep_dict["f_prev_preposition"][(prev_word_lower, cur_tag)] += 1
-                    
-                    if is_preposition(prev_prev_word_lower):
-                        if (prev_prev_word_lower, cur_tag) not in self.feature_rep_dict["f_prev_prev_preposition"]:
-                            self.feature_rep_dict["f_prev_prev_preposition"][(prev_prev_word_lower, cur_tag)] = 1
-                        else:
-                            self.feature_rep_dict["f_prev_prev_preposition"][(prev_prev_word_lower, cur_tag)] += 1
 
                     # determiner
                     if is_determiner(prev_word_lower):
@@ -473,15 +525,10 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     c_word_lower = c_word.lower()
     c_tag = history[1]
     prev_word = history[2]
-    prev_word_len = len(prev_word)
     prev_word_lower = prev_word.lower()
     prev_tag = history[3]
-    prev_prev_word = history[4]
-    prev_prev_word_lower = prev_prev_word.lower()
-    prev_prev_word_len = len(prev_prev_word)
     prev_prev_tag = history[5]
     next_word = history[6]
-    next_word_lower = next_word.lower()
     next_word_len = len(next_word)
     features = []
 
@@ -492,19 +539,47 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
     # calculating maximum cut size for prefix and suffix
     # f101
-    word_cutting_bound = min(len(c_word) + 1, 6)
+    word_cutting_bound_4 = min(len(c_word) + 1, 5)
+    word_cutting_bound_5 = min(len(c_word) + 1, 6)
+    word_cutting_bound_6 = min(len(c_word) + 1, 7)
+    # 101-102
     if "f101" in dict_of_dicts:
-        for suffix_len in range(1, word_cutting_bound):
+        for suffix_len in range(1, word_cutting_bound_4):
             word_suffix = c_word[-suffix_len:]
             if (word_suffix, c_tag) in dict_of_dicts["f101"]:
                 features.append(dict_of_dicts["f101"][(word_suffix, c_tag)])
 
-    # f102
     if "f102" in dict_of_dicts:
-        for prefix_len in range(1, word_cutting_bound):
+        for prefix_len in range(1, word_cutting_bound_4):
             word_prefix = c_word[:prefix_len]
             if (word_prefix, c_tag) in dict_of_dicts["f102"]:
                 features.append(dict_of_dicts["f102"][(word_prefix, c_tag)])
+
+    # 101_5-102_5
+    if "f101_5" in dict_of_dicts:
+        for suffix_len in range(1, word_cutting_bound_5):
+            word_suffix = c_word[-suffix_len:]
+            if (word_suffix, c_tag) in dict_of_dicts["f101_5"]:
+                features.append(dict_of_dicts["f101_5"][(word_suffix, c_tag)])
+
+    if "f102_5" in dict_of_dicts:
+        for prefix_len in range(1, word_cutting_bound_5):
+            word_prefix = c_word[:prefix_len]
+            if (word_prefix, c_tag) in dict_of_dicts["f102_5"]:
+                features.append(dict_of_dicts["f102_5"][(word_prefix, c_tag)])
+
+    # 101_6-102_6
+    if "f101_6" in dict_of_dicts:
+        for suffix_len in range(1, word_cutting_bound_6):
+            word_suffix = c_word[-suffix_len:]
+            if (word_suffix, c_tag) in dict_of_dicts["f101_6"]:
+                features.append(dict_of_dicts["f101_6"][(word_suffix, c_tag)])
+
+    if "f102_6" in dict_of_dicts:
+        for prefix_len in range(1, word_cutting_bound_6):
+            word_prefix = c_word[:prefix_len]
+            if (word_prefix, c_tag) in dict_of_dicts["f102_6"]:
+                features.append(dict_of_dicts["f102_6"][(word_prefix, c_tag)])
             
     # f103
     if "f103" in dict_of_dicts: 
@@ -526,11 +601,6 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if (prev_word, c_tag) in dict_of_dicts["f106"]:
             features.append(dict_of_dicts["f106"][(prev_word, c_tag)])
     
-    if "f106_lower" in dict_of_dicts:
-        if (prev_word_lower, c_tag) in dict_of_dicts["f106_lower"]:
-            features.append(dict_of_dicts["f106_lower"][(prev_word_lower, c_tag)])
-    
-
     if "f106_prev_tag" in dict_of_dicts:
         if (prev_word, prev_tag, c_tag) in dict_of_dicts["f106_prev_tag"]:
             features.append(dict_of_dicts["f106_prev_tag"][(prev_word, prev_tag, c_tag)])
@@ -567,16 +637,6 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if (c_word_len, c_tag) in dict_of_dicts["f_length"]:
             features.append(dict_of_dicts["f_length"][(c_word_len, c_tag)])
 
-    # prev length
-    if "f_prev_length" in dict_of_dicts:
-        if (prev_word_len, prev_tag, c_tag) in dict_of_dicts["f_prev_length"]:
-            features.append(dict_of_dicts["f_prev_length"][(prev_word_len, prev_tag, c_tag)])
-
-    # prev prev length
-    if "f_prev_prev_length" in dict_of_dicts:
-        if (prev_prev_word_len, c_tag) in dict_of_dicts["f_prev_prev_length"]:
-            features.append(dict_of_dicts["f_prev_prev_length"][(prev_prev_word_len, c_tag)])
-    
     # next length
     if "f_next_length" in dict_of_dicts:
         if (next_word_len, c_tag) in dict_of_dicts["f_next_length"]:
@@ -602,31 +662,17 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if c_tag in dict_of_dicts["f_mid_capital"] and check_mid_word_capital(c_word):
             features.append(dict_of_dicts["f_mid_capital"][c_tag])
 
-    # curr prev capital
-    if "f_curr_prev_capital" in dict_of_dicts:
-        if (prev_word, c_word, c_tag) in dict_of_dicts["f_curr_prev_capital"]:
-                features.append(dict_of_dicts["f_curr_prev_capital"][(prev_word, c_word, c_tag)])
-
-    # vowels
-    if "f_vowels" in dict_of_dicts:
-        vowels_count = count_vowels(c_word)
-        if (vowels_count, c_tag) in dict_of_dicts["f_vowels"]:
-            features.append(dict_of_dicts["f_vowels"][(vowels_count, c_tag)])
-
     # prepositions
     if "f_prev_preposition" in dict_of_dicts:
         if (prev_word_lower, c_tag) in dict_of_dicts["f_prev_preposition"]:
             features.append(dict_of_dicts["f_prev_preposition"][(prev_word_lower, c_tag)])
     
-    if "f_prev_prev_preposition" in dict_of_dicts:
-        if (prev_prev_word_lower, c_tag) in dict_of_dicts["f_prev_prev_preposition"]:
-            features.append(dict_of_dicts["f_prev_prev_preposition"][(prev_prev_word_lower, c_tag)])
-
     # determiner
     if "f_prev_determiner" in dict_of_dicts:
         if (prev_word_lower, c_tag) in dict_of_dicts["f_prev_determiner"]:
             features.append(dict_of_dicts["f_prev_determiner"][(prev_word_lower, c_tag)])
 
+    # special suffixes 
     if "f_has_adj_suffix" in dict_of_dicts:
         if c_tag in dict_of_dicts["f_has_adj_suffix"] and adjective_suffixes(c_word):
             features.append(dict_of_dicts["f_has_adj_suffix"][c_tag])
@@ -643,6 +689,11 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         if c_tag in dict_of_dicts["f_has_present_suffix"] and present_suffix(c_word):
             features.append(dict_of_dicts["f_has_present_suffix"][c_tag])
 
+    if "f_has_medical_suffix" in dict_of_dicts:
+        if c_tag in dict_of_dicts["f_has_medical_suffix"] and medical_suffix(c_word):
+            features.append(dict_of_dicts["f_has_medical_suffix"][c_tag])
+
+    # is preposition
     if "f_is_preposition" in dict_of_dicts:
         if (c_word_lower, c_tag) in dict_of_dicts["f_is_preposition"] and is_preposition(c_word_lower):
             features.append(dict_of_dicts["f_is_preposition"][(c_word_lower, c_tag)])
@@ -653,16 +704,30 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 def preprocess_train(train_path, threshold, run_mode="test1"):
     # Statistics
     if run_mode == "test1":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106_prev_tag", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+                              "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",
+                              "f_prev_preposition", "f_is_preposition"] 
+        # ["f100", "f101_5", "f102_5", "f103", "f104", "f105", "f106_prev_tag", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+        #                       "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",
+        #                       "f_prev_preposition", "f_is_preposition"] 
+    elif run_mode == 'train1':
+        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
                               "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",
                               "f_prev_preposition", "f_is_preposition"] 
     elif run_mode == "comp1":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric"]
+        filtered_feature_list = ["f100", "f101_5", "f102_5", "f103", "f104", "f105", "f106_prev_tag", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
+                              "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",
+                              "f_prev_preposition", "f_is_preposition"] 
+    elif run_mode == "train2":
+        filtered_feature_list = ["f100", "f101_6", "f102_6", "f103", "f104", "f105", "f106", "f107",  "f_is_numeric", "f_is_combined_numeric",
+                                "f_all_capital", "f_first_capital", "f_mid_capital", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_prev_determiner", "f_prev_preposition", "f_is_preposition",
+                                "f_has_adj_suffix", "f_has_past_suffix", "f_has_present_suffix", "f_has_medical_suffix"]
     elif run_mode == "comp2":
-        filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106_prev_tag", "f107",  "f_is_numeric", "f_is_combined_numeric",
-                                "f_all_capital", "f_first_capital", "f_length", "f_mid_capital", "f_has_hyphen", "f_curr_prev_capital", "f_prev_determiner"]
+        filtered_feature_list = ["f100", "f101_6", "f102_6", "f103", "f104", "f105", "f106", "f107",  "f_is_numeric", "f_is_combined_numeric",
+                                "f_all_capital", "f_first_capital", "f_mid_capital", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_prev_determiner", "f_prev_preposition", "f_is_preposition",
+                                "f_has_adj_suffix", "f_has_past_suffix", "f_has_present_suffix", "f_has_medical_suffix"]
     else:
-        raise ValueError(d=f"Unknown run_mode. Expected one of [test1, comp1, comp2], got {run_mode}")
+        raise ValueError(d=f"Unknown run_mode. Expected one of [train1, train2, test1, comp1, comp2], got {run_mode}")
     
     statistics = FeatureStatistics()
     statistics.get_word_tag_pair_count(train_path)

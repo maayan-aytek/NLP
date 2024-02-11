@@ -54,7 +54,8 @@ def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dic
     return accuracy_score, top_10_mistakes_dict
 
 
-def k_fold_cv(data_path: str, weights_path:str, k_folds: int, threshold: int=1, lam: int=1) -> None:
+
+def k_fold_cv(data_path: str, weights_path:str, k_folds: int, run_mode: str, threshold: int=1, lam: int=1) -> None:
     """
     Perform k-fold cross validation on a given labeled data.
     Args:
@@ -69,6 +70,7 @@ def k_fold_cv(data_path: str, weights_path:str, k_folds: int, threshold: int=1, 
     file = read_test(data_path, tagged=tagged)
     sentences = [sen[WORD][2:-1] for sen in file]
     indices = np.array([i for i in range(len(sentences))]).astype(int) 
+    np.random.seed(100)
     np.random.shuffle(indices)  
     fold_size = len(sentences) // k_folds
     accuracy_list = [] 
@@ -79,19 +81,19 @@ def k_fold_cv(data_path: str, weights_path:str, k_folds: int, threshold: int=1, 
         test_data = [sentences[idx] for idx in test_indices]
 
         # build fold train data
-        output_file = open("fold_train.wtag", "w")
+        output_file = open(f"fold_{i}_train.wtag", "w")
         for sentence in train_data:
             output_file.write(" ".join(sentence) + "\n")
         output_file.close()
 
         # build fold test data
-        output_file = open("fold_test.wtag", "w")
+        output_file = open(f"fold_{i}_test.wtag", "w")
         for sentence in test_data:
             output_file.write(" ".join(sentence) + "\n")
         output_file.close()
 
         # train the model
-        statistics, feature2id = preprocess_train("fold_train.wtag", threshold)
+        statistics, feature2id = preprocess_train(f"fold_{i}_train.wtag", threshold, run_mode=run_mode)
         get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
 
         with open(weights_path, 'rb') as f:
@@ -99,10 +101,13 @@ def k_fold_cv(data_path: str, weights_path:str, k_folds: int, threshold: int=1, 
         pre_trained_weights = optimal_params[0]
 
         # predict and eval
-        tag_all_test("fold_test.wtag", pre_trained_weights, feature2id, f"predictions_fold_{i}.wtag")
-        accuracy, _ = eval_preds("fold_test.wtag", f"predictions_fold_{i}.wtag")
+        tag_all_test(f"fold_{i}_test.wtag", pre_trained_weights, feature2id, f"predictions_fold_{i}.wtag")
+        accuracy, top_10_mistakes = eval_preds(f"fold_{i}_test.wtag", f"predictions_fold_{i}.wtag")
         accuracy_list.append(accuracy)
+        print(top_10_mistakes)
 
-        print(f"Fold {i} Accuracy: {accuracy_list[i]}")
+        print(f"Fold {i} Accuracy: {accuracy_list[i]*100}")
 
-    print(f"Average Accuracy: {sum(accuracy_list)/len(accuracy_list)}")
+    for i in range(k_folds):
+        print(f"Fold {i} Accuracy: {accuracy_list[i]*100}")
+    print(f"Average Accuracy: {(sum(accuracy_list)/len(accuracy_list)) * 100}")
