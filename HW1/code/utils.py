@@ -1,8 +1,7 @@
-from typing import List, Dict, Tuple, Union
+from typing import Dict, Tuple
 import numpy as np
-from preprocessing import Feature2id, represent_input_with_features, read_test, preprocess_train
-from inference import tag_all_test, memm_beam_search
-from collections import OrderedDict, defaultdict
+from preprocessing import read_test, preprocess_train
+from inference import tag_all_test
 from optimization import get_optimal_vector
 import pickle
 
@@ -24,7 +23,7 @@ def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dic
     test_list = read_test(labeled_test_path, tagged=True)
     preds_list = read_test(prediction_path, tagged=True)
     confusion_matrix = {}
-    mistakes_matrix = {}
+    word_mistakes_matrix = {}
     count_true_preds = 0
     count_all_preds = 0
     for test, pred in zip(test_list, preds_list):
@@ -38,20 +37,66 @@ def eval_preds(labeled_test_path: str, prediction_path: str) -> Tuple[float, Dic
             if test_label == pred_label:
                 count_true_preds += 1
             else:
-                if (test_label, pred_label) not in confusion_matrix.keys():
-                    confusion_matrix[(test_label, pred_label)] = 1
-                    mistakes_matrix[(test_label, pred_label)] = [test[WORD][i + 2]]
+                if test_label not in confusion_matrix.keys():
+                    confusion_matrix[test_label] = [pred_label]
                 else:
-                    confusion_matrix[(test_label, pred_label)] += 1
-                    mistakes_matrix[(test_label, pred_label)].append([test[WORD][i + 2]])
-    sorted_mistakes = sorted(confusion_matrix.items(), key=lambda x: x[1], reverse=True)
-    top_10_mistakes_dict = dict(sorted_mistakes[:10])
-    top_mistakes_matrix = {k:v for k, v in mistakes_matrix.items() if k in top_10_mistakes_dict}
-    for key in top_mistakes_matrix:
-        print(key)
-        print(top_mistakes_matrix[key])
+                    confusion_matrix[test_label].append(pred_label)
+                if (test_label, pred_label) not in word_mistakes_matrix.keys():
+                    word_mistakes_matrix[(test_label, pred_label)] = [test[WORD][i + 2]]
+                else:
+                    word_mistakes_matrix[(test_label, pred_label)].append(test[WORD][i + 2])
     accuracy_score = count_true_preds / count_all_preds
-    return accuracy_score, top_10_mistakes_dict
+    return accuracy_score, confusion_matrix, word_mistakes_matrix
+
+
+
+def display_top_10_mistakes(confusion_matrix: Dict) -> None:
+    """Display confusion matrix of top 10 classes with mistakes
+
+    Args:
+        confusion_matrix (Dict): _description_
+    """
+    def gradual_color(val):
+        if val == 0:
+            color = '#00FF00'
+        elif val < 15:
+            color = 'yellow'
+        elif 15 <= val <= 30:
+            color = 'orange'
+        else:
+            color = '#FF5733'
+        return f'color: {color}'
+
+    import pandas as pd
+    mistake_counts = {}
+    for true_label, mistakes in confusion_matrix.items():
+        if true_label not in mistake_counts:
+            mistake_counts[true_label] = {}
+        for mistake_label in mistakes:
+            if mistake_label not in mistake_counts[true_label]:
+                mistake_counts[true_label][mistake_label] = 1
+            else:
+                mistake_counts[true_label][mistake_label] += 1
+
+    sorted_classes = sorted(mistake_counts.items(), key=lambda x: sum(x[1].values()), reverse=True)[:10]
+
+    all_labels = set(dict(sorted_classes).keys())
+    for true_label, mistakes in sorted_classes:
+        all_labels.update(set(mistakes.keys()))
+
+    df = pd.DataFrame(index=[x[0] for x in sorted_classes], columns=all_labels)
+
+    for true_label, mistakes in sorted_classes:
+        for mistake_label, count in mistakes.items():
+            df.at[true_label, mistake_label] = count
+            
+    df.fillna(0, inplace=True)
+
+    sorted_columns = [col for col in df.index if col in df.columns]
+    sorted_columns += [col for col in df.columns if col not in sorted_columns]
+    df = df.reindex(columns=sorted_columns)
+    styled_df = df.style.applymap(gradual_color)
+    print(styled_df)
 
 
 
@@ -102,9 +147,8 @@ def k_fold_cv(data_path: str, weights_path:str, k_folds: int, run_mode: str, thr
 
         # predict and eval
         tag_all_test(f"fold_{i}_test.wtag", pre_trained_weights, feature2id, f"predictions_fold_{i}.wtag")
-        accuracy, top_10_mistakes = eval_preds(f"fold_{i}_test.wtag", f"predictions_fold_{i}.wtag")
+        accuracy, _, _, = eval_preds(f"fold_{i}_test.wtag", f"predictions_fold_{i}.wtag")
         accuracy_list.append(accuracy)
-        print(top_10_mistakes)
 
         print(f"Fold {i} Accuracy: {accuracy_list[i]*100}")
 

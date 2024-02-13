@@ -73,10 +73,10 @@ def compare_files(true_file, pred_file):
     labels = sorted(list(set(true_labels)))
     if len(prob_sent) > 0:
         print(prob_sent)
-    # conf_mat = confusion_matrix(y_true=true_labels, y_pred=predictions, labels=labels)
-    # conf_mat = pd.DataFrame(conf_mat, index=labels, columns=labels)
-    # return num_correct / num_total, prob_sent, conf_mat
-    return num_correct / num_total, prob_sent
+    conf_mat = confusion_matrix(y_true=true_labels, y_pred=predictions, labels=labels)
+    conf_mat = pd.DataFrame(conf_mat, index=labels, columns=labels)
+    return num_correct / num_total, prob_sent, conf_mat
+    # return num_correct / num_total, prob_sent
 
 
 def calc_scores(e):
@@ -96,7 +96,8 @@ def calc_scores(e):
             comp1_file = f'{cur_dir}/{comp1_file[0]}'
             # comp1, prob1, conf_mat = compare_files('comp1.wtag', comp1_file)
             # conf_mat.to_csv('Comp 1 conf.csv')
-            comp1, prob1 = compare_files('data/comp1.wtag_public', comp1_file)
+            comp1, prob1, conf_mat1 = compare_files('data/comp1.wtag_public', comp1_file)
+            print(conf_mat1)
             comp1 = round(comp1 * 100, 2)
         if len(comp2_file) != 1:
             print(f'{sub} ha a Problem with m2!')
@@ -105,8 +106,9 @@ def calc_scores(e):
         else:
             ids = comp2_file[0].replace('comp_m2_', '').split('.')[0].split('_')
             comp2_file = f'{cur_dir}/{comp2_file[0]}'
-            comp2, prob2 = compare_files('data/comp2.wtag_public', comp2_file)
-            # comp2, prob2, conf_mat = compare_files('comp2.wtag', comp2_file)
+            comp2, prob2, conf_mat2  = compare_files('data/comp2.wtag_public', comp2_file)
+            # comp2, prob2 = compare_files('comp2.wtag', comp2_file)
+            print(conf_mat2)
             # conf_mat.to_csv('Comp 2 conf.csv')
             comp2 = round(comp2 * 100, 2)
 

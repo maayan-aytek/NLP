@@ -40,9 +40,8 @@ def main():
 
     print(pre_trained_weights)
     tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path)
-    accuracy_score, top_10_mistakes_dict = eval_preds(test_path, predictions_path)
+    accuracy_score, confusion_matrix, _ = eval_preds(test_path, predictions_path)
     print("Accuracy:", accuracy_score*100)
-    print("Top 10 mistakes:", top_10_mistakes_dict)
 
     # k_fold_cv("data/train2.wtag", weights_path, k_folds=4, lam=lam, threshold=threshold, run_mode=run_mode)
 

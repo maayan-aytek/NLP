@@ -2,7 +2,7 @@ from tqdm import tqdm
 from typing import List, Dict, Tuple, Union
 import numpy as np
 from preprocessing import Feature2id, represent_input_with_features, read_test
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 
 
 def update_q_dict(q_dict: dict, sentence: List[str], k:int, pre_trained_weights: np.ndarray, feature2id: Feature2id, all_tags: list, prev_tag:str, prev_prev_tag:str) -> None:
@@ -199,14 +199,14 @@ def memm_beam_search(sentence: List[str], pre_trained_weights: np.ndarray, featu
     return preds[2:]
 
 
-def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
+def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path, b=5):
     tagged = "test" in test_path or "train" in test_path
     test = read_test(test_path, tagged=tagged)
     all_tags = list(feature2id.feature_statistics.tags)
     output_file = open(predictions_path, "a+")
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
-        pred = memm_beam_search(sentence, pre_trained_weights, feature2id, b=5) # len(all_tags))
+        pred = memm_beam_search(sentence, pre_trained_weights, feature2id, b=b)
         sentence = sentence[2:]
         for i in range(len(pred)):
             if i > 0:
