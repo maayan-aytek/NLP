@@ -22,7 +22,7 @@ def train_and_tag_comp(train_path: str, comp_path: str, threshold: int, lam: flo
         predictions_path = 'comp_m2_206713612_316111442.wtag'
     weights_path=f'weights_{run_mode}.pkl'
     statistics, feature2id = preprocess_train(train_path, threshold, run_mode=run_mode)
-    # get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
+    get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
 
     with open(weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)
@@ -41,9 +41,3 @@ def concatenate_files(input_files: list, output_file: str) -> None:
         for input_file in input_files:
             with open(input_file, 'r') as infile:
                 outfile.write(infile.read())
-
-
-if __name__ == "__main__":
-    # concatenate_files(input_files=['data/train1.wtag', 'data/test1.wtag'], output_file='data/combined_model1_file.wtag')
-    train_and_tag_comp(train_path='data/combined_model1_file.wtag', comp_path="data/comp1.words",threshold=1, lam=0.7, b=100)
-    train_and_tag_comp(train_path='data/train2.wtag', comp_path="data/comp2.words",threshold=1, lam=0.05, b=100)
