@@ -702,7 +702,7 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
 
 
 def preprocess_train(train_path, threshold, run_mode="test1"):
-    # Statistics
+    # list of features for each run mode
     if run_mode == "test1":
         filtered_feature_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "f_is_numeric", "f_is_combined_numeric", "f_all_capital", "f_first_capital",
                               "f_length", "f_has_hyphen",  "f_has_dot", "f_has_apostrophe", "f_has_adj_suffix", "f_has_plural_suffix", "f_prev_determiner", "f_next_length",

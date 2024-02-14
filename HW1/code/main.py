@@ -4,11 +4,12 @@ from optimization import get_optimal_vector
 from inference import tag_all_test
 from utils import eval_preds, k_fold_cv
 import time
-from generate_comp_tagged import train_and_tag_comp
+from generate_comp_tagged import train_and_tag_comp, concatenate_files
 
 
 def main():
-    # concatenate_files(input_files=['data/train1.wtag', 'data/test1.wtag'], output_file='data/combined_model1_file.wtag')
+    # tagging competition files
+    concatenate_files(input_files=['data/train1.wtag', 'data/test1.wtag'], output_file='data/combined_model1_file.wtag')
     train_and_tag_comp(train_path='data/combined_model1_file.wtag', comp_path="data/comp1.words",threshold=1, lam=0.7, b=100)
     train_and_tag_comp(train_path='data/train2.wtag', comp_path="data/comp2.words",threshold=1, lam=0.05, b=100)
 
