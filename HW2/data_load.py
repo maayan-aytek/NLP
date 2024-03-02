@@ -9,10 +9,10 @@ import pickle
 
 def data_loader(file_path: str, embedding_path: str, sentences_representation: bool = False):
     if sentences_representation:
-        if os.path.exists(f'{file_path}_sentences.pickle') and os.path.exists(f'{file_path}_sentences_labels.pickle') and os.path.exists(f'{file_path}_words_labels.pickle'):
-            sentences = pickle.load(open(f'{file_path}_sentences.pickle', 'rb'))
-            sentences_labels = pickle.load(open(f'{file_path}_sentences_labels.pickle', 'rb'))
-            words_labels = pickle.load(open(f'{file_path}_words_labels.pickle', 'rb'))
+        if os.path.exists(f'{file_path}_sentences_{embedding_path}.pickle') and os.path.exists(f'{file_path}_sentences_labels_{embedding_path}.pickle') and os.path.exists(f'{file_path}_words_labels_{embedding_path}.pickle'):
+            sentences = pickle.load(open(f'{file_path}_sentences_{embedding_path}.pickle', 'rb'))
+            sentences_labels = pickle.load(open(f'{file_path}_sentences_labels_{embedding_path}.pickle', 'rb'))
+            words_labels = pickle.load(open(f'{file_path}_words_labels_{embedding_path}.pickle', 'rb'))
             return sentences, sentences_labels, words_labels
     else:
         if os.path.exists(f'{file_path}_embedded_words.pickle') and os.path.exists(f'{file_path}_words_labels.pickle'):
@@ -70,16 +70,16 @@ def data_loader(file_path: str, embedding_path: str, sentences_representation: b
             embedded_words.append(word_vec)
             words_labels.append(coded_label)
     
-    with open(f'{file_path}_words_labels.pickle', 'wb') as file:
+    with open(f'{file_path}_words_labels_{embedding_path}.pickle', 'wb') as file:
             pickle.dump(words_labels, file)
     if sentences_representation:
-        with open(f'{file_path}_sentences.pickle', 'wb') as file:
+        with open(f'{file_path}_sentences_{embedding_path}.pickle', 'wb') as file:
             pickle.dump(sentences, file)
-        with open(f'{file_path}_sentences_labels.pickle', 'wb') as file:
+        with open(f'{file_path}_sentences_labels_{embedding_path}.pickle', 'wb') as file:
             pickle.dump(sentences_labels, file)
         return sentences, sentences_labels, words_labels
     else:
-        with open(f'{file_path}_embedded_words.pickle', 'wb') as file:
+        with open(f'{file_path}_embedded_words_{embedding_path}.pickle', 'wb') as file:
             pickle.dump(embedded_words, file)
         return embedded_words, words_labels
 

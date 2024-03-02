@@ -11,34 +11,39 @@ import torch.nn.functional as F
 
 TRAIN_PATH = "data/train.tagged"
 DEV_PATH = "data/dev.tagged"
-EMBEDDING_PATH = 'word2vec-google-news-300'
+EMBEDDING_PATH = "fasttext-wiki-news-subwords-300" # "conceptnet-numberbatch-17-06-300" # "glove-twitter-50" "glove-twitter-100" # 'word2vec-google-news-300'
 
 
 class NER_LSTM(nn.Module):
-    def __init__(self, vec_dim, num_classes, hidden_dim=100):
+    def __init__(self, vec_dim, num_classes, device, hidden_dim=128):
         super(NER_LSTM, self).__init__()
+        self.device = device
         self.hidden_dim = hidden_dim
         self.tag_dim = num_classes
         self.vec_dim = vec_dim
-        self.lstm = nn.LSTM(self.vec_dim, self.hidden_dim)
-        self.hidden2tag = nn.Sequential(nn.ReLU(),
-                                        nn.Linear(self.hidden_dim, self.tag_dim))
-        self.loss_fn = nn.CrossEntropyLoss(torch.tensor([1.0, 8.0]))
+        self.dropout = nn.Dropout(0.2)
+        self.lstm = nn.LSTM(self.vec_dim, self.hidden_dim, bidirectional=True, num_layers=1)
+        self.hidden2tag = nn.Sequential(nn.Tanh(),
+                                        nn.Linear(2 * hidden_dim, self.tag_dim))
+                                        # nn.Linear(2* self.hidden_dim, 2* 64),
+                                        # nn.LeakyReLU(),
+                                        # nn.Linear(2* 64, self.tag_dim))
+        self.loss_fn = nn.CrossEntropyLoss(torch.tensor([1.0, 10.0]))
 
     def forward(self, input_ids, labels=None):
-        lstm_out, _ = self.lstm(input_ids.unsqueeze(1).float())
+        lstm_out, _ = self.lstm(input_ids.unsqueeze(1).float().to(self.device))
+        # lstm_out = self.dropout(lstm_out)
         tag_space = self.hidden2tag(lstm_out)
         tag_score =  F.softmax(tag_space.squeeze(1), dim=1)
         if labels is None:
             return tag_score, None
-        loss = self.loss_fn(tag_score, labels)
+        loss = self.loss_fn(tag_score.to(self.device), labels.to(self.device))
         return tag_score, loss
 
 
 def train(model, data_sets, optimizer, num_epochs: int):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     phases = ["train", "dev"]
     best_f1 = 0
@@ -81,6 +86,7 @@ train_ds = NERDataSet(TRAIN_PATH, EMBEDDING_PATH, sentences_representation=True)
 print('created train')
 dev_ds = NERDataSet(DEV_PATH, EMBEDDING_PATH, sentences_representation=True)
 datasets = {"train": train_ds, "dev": dev_ds}
-nn_model = NER_LSTM(num_classes=2, vec_dim=train_ds.vector_dim)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+nn_model = NER_LSTM(num_classes=2, vec_dim=train_ds.vector_dim, device=device)
 optimizer = Adam(params=nn_model.parameters())
-train(model=nn_model, data_sets=datasets, optimizer=optimizer, num_epochs=5)
+train(model=nn_model, data_sets=datasets, optimizer=optimizer, num_epochs=15)
