@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 TRAIN_PATH = "data/train.tagged"
 DEV_PATH = "data/dev.tagged"
-EMBEDDING_PATH = 'word2vec-google-news-300'
+EMBEDDING_PATH = ['word2vec-google-news-300']
 
 
 class NER_LSTM(nn.Module):
@@ -73,7 +73,7 @@ def train(model, data_sets, optimizer, num_epochs: int):
             if phase == "dev" and epoch_f1 > best_f1:
                 best_f1 = epoch_f1
         print()
-
+    print(f'Best Dev F1: {best_f1:4f}\n')
 
 train_ds = NERDataSet(TRAIN_PATH, EMBEDDING_PATH, sentences_representation=True)
 print('created train')
