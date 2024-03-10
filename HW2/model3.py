@@ -26,10 +26,10 @@ class NER_LSTM(nn.Module):
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, input_ids, labels=None):
-        lstm_out, _ = self.lstm(input_ids.unsqueeze(1).float())
-        tag_space = self.hidden2tag(lstm_out)
-        tag_score =  F.softmax(tag_space.squeeze(1), dim=1)
-        if labels is None:
+        lstm_out, _ = self.lstm(input_ids.unsqueeze(1).float()) # Unsqueez to convert tensor's shape to 3D
+        tag_space = self.hidden2tag(lstm_out) # Feed Forward network
+        tag_score =  F.softmax(tag_space.squeeze(1), dim=1) # Transform to probabilities.
+        if labels is None: # Test
             return tag_score, None
         loss = self.loss_fn(tag_score, labels)
         return tag_score, loss
@@ -53,7 +53,7 @@ def train(model, data_sets, optimizer, num_epochs: int):
 
             labels, preds = [], []
             dataset = data_sets[phase]
-            for sentence, sentence_labels in zip(dataset.tokenized_sen, dataset.labels):
+            for sentence, sentence_labels in zip(dataset.tokenized_sen, dataset.labels): # Iterate on sentences for context and tag words.
                 if phase == "train":
                     outputs, loss = model(sentence, sentence_labels)
                     loss.backward()

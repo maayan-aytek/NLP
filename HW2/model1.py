@@ -13,6 +13,7 @@ print("finished load train")
 X_test, y_test = data_loader(TEST_PATH, EMBEDDING_PATH)
 print("finished load test")
 
+# Convert all lists to tensors.
 X_train_tensor = torch.stack(X_train)
 y_train_tensor = torch.tensor(y_train)
 X_test_tensor = torch.stack(X_test)

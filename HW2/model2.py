@@ -25,13 +25,13 @@ class NERNN(nn.Module):
         x = self.first_layer(input_ids)
         x = self.activation(x)
         x = self.second_layer(x)
-        if labels is None:
+        if labels is None: # Test
             return x, None
         loss = self.loss(x, labels)
         return x, loss
 
 
-def train(model, data_sets, optimizer, num_epochs: int, batch_size=16):
+def train(model, data_sets, optimizer, num_epochs: int, batch_size=16): # Training process.
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
     data_loaders = {"train": DataLoader(data_sets["train"], batch_size=batch_size, shuffle=True),
